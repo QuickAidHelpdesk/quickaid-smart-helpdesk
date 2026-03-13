@@ -1,0 +1,1 @@
+A cloud-native application built on Microsoft Azure that enables ticket submission, status tracking, automated notifications, and secure data management, while remaining scalable, cost-efficient, and deployment-ready under Azure Free Tier constraints. 
