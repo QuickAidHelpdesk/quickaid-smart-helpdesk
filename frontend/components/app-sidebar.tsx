@@ -31,7 +31,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               tooltip={siteConfig.company.name}
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <Link href="/">
+              <Link href={siteConfig.company.url}>
                 <Logo className="size-5!" />
                 <span className="text-base font-semibold">
                   {siteConfig.company.name}

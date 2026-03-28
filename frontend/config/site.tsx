@@ -29,6 +29,7 @@ export const siteConfig = {
   // Branding
   company: {
     name: "QuickAid",
+    url: "/dashboard",
     logo: TicketsIcon,
   },
 
