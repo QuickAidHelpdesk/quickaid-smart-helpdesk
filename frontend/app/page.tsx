@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Signature } from "@/components/signature";
@@ -6,6 +9,12 @@ import { Signature } from "@/components/signature";
 import { SiteFooter } from "@/components/site-footer";
 
 export default function Home() {
+  const router = useRouter();
+
+  const handleLoginRoute = () => {
+    router.push("/login");
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <main className="flex-1 flex items-center justify-center">
@@ -38,11 +47,13 @@ export default function Home() {
                 Learn More <ArrowDown className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/login">
-              <Button size="lg" className="px-8 font-medium cursor-pointer">
-                Get Started <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
+            <Button
+              size="lg"
+              className="px-8 font-medium cursor-pointer"
+              onClick={handleLoginRoute}
+            >
+              Get Started <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </div>
         </section>
       </main>

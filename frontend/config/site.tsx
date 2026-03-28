@@ -1,4 +1,5 @@
 import {
+  TicketsIcon,
   LayoutDashboardIcon,
   ListIcon,
   ChartBarIcon,
@@ -19,13 +20,16 @@ import {
   BuildingIcon,
   ShieldCheckIcon,
   GitMergeIcon,
+  CircleUserRoundIcon,
+  CreditCardIcon,
+  BellIcon,
 } from "lucide-react";
 
 export const siteConfig = {
   // Branding
   company: {
     name: "QuickAid",
-    logo: CommandIcon,
+    logo: TicketsIcon,
   },
 
   // Default User
@@ -123,6 +127,25 @@ export const siteConfig = {
       title: "Settings",
       url: "/settings",
       icon: <Settings2Icon />,
+    },
+  ],
+
+  // User Navigation
+  navUser: [
+    {
+      title: "Account",
+      url: "/account",
+      icon: <CircleUserRoundIcon />,
+    },
+    {
+      title: "Billing",
+      url: "/billing",
+      icon: <CreditCardIcon />,
+    },
+    {
+      title: "Notifications",
+      url: "/notifications",
+      icon: <BellIcon />,
     },
   ],
 };

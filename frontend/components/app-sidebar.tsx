@@ -28,6 +28,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
+              tooltip={siteConfig.company.name}
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
               <Link href="/">
@@ -48,7 +49,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={siteConfig.user} />
+        <NavUser user={siteConfig.user} menuItems={siteConfig.navUser} />
       </SidebarFooter>
     </Sidebar>
   );

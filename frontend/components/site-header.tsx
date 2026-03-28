@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { siteConfig } from "@/config/site";
@@ -21,6 +20,12 @@ export function SiteHeader() {
       (item) => item.url === pathname,
     );
     if (navSecondaryItem) return navSecondaryItem.title;
+
+    // Check navUser
+    const navUserItem = siteConfig.navUser.find(
+      (item) => item.url === pathname,
+    );
+    if (navUserItem) return navUserItem.title;
 
     return siteConfig.company.name;
   };

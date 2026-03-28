@@ -26,6 +26,7 @@ import {
 import { PanelLeftIcon } from "lucide-react";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
+const SIDEBAR_MODE_COOKIE_NAME = "sidebar_collapsed_mode";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
@@ -40,6 +41,7 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
   toggleSidebar: () => void;
+  collapsedMode: "icon" | "offcanvas";
 };
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
@@ -55,6 +57,7 @@ function useSidebar() {
 
 function SidebarProvider({
   defaultOpen = true,
+  defaultCollapsedMode = "icon",
   open: openProp,
   onOpenChange: setOpenProp,
   className,
@@ -63,6 +66,7 @@ function SidebarProvider({
   ...props
 }: React.ComponentProps<"div"> & {
   defaultOpen?: boolean;
+  defaultCollapsedMode?: "icon" | "offcanvas";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
@@ -73,6 +77,16 @@ function SidebarProvider({
   // We use openProp and setOpenProp for control from outside the component.
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
+
+  const [collapsedMode, _setCollapsedMode] = React.useState<
+    "icon" | "offcanvas"
+  >(defaultCollapsedMode);
+
+  const setCollapsedMode = React.useCallback((mode: "icon" | "offcanvas") => {
+    _setCollapsedMode(mode);
+    document.cookie = `${SIDEBAR_MODE_COOKIE_NAME}=${mode}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+  }, []);
+
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === "function" ? value(open) : value;
@@ -88,10 +102,26 @@ function SidebarProvider({
     [setOpenProp, open],
   );
 
-  // Helper to toggle the sidebar.
+  // Helper to toggle the sidebar to cycle through 3 states: expanded -> icon -> offcanvas
   const toggleSidebar = React.useCallback(() => {
-    return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open);
-  }, [isMobile, setOpen, setOpenMobile]);
+    if (isMobile) {
+      setOpenMobile((open) => !open);
+      return;
+    }
+
+    if (open) {
+      // open -> switch to collapsed icon
+      setOpen(false);
+      setCollapsedMode("icon");
+    } else if (collapsedMode === "icon") {
+      // collapsed icon -> switch to collapsed offcanvas
+      setCollapsedMode("offcanvas");
+    } else {
+      // collapsed offcanvas -> back to open
+      setOpen(true);
+      setCollapsedMode("icon");
+    }
+  }, [isMobile, open, collapsedMode, setOpenMobile, setOpen, setCollapsedMode]);
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
@@ -122,8 +152,18 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      collapsedMode,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
+    [
+      state,
+      open,
+      setOpen,
+      isMobile,
+      openMobile,
+      setOpenMobile,
+      toggleSidebar,
+      collapsedMode,
+    ],
   );
 
   return (
@@ -164,7 +204,10 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile, collapsedMode } =
+    useSidebar();
+
+  const finalCollapsible = collapsible === "none" ? "none" : collapsedMode;
 
   if (collapsible === "none") {
     return (
@@ -211,7 +254,7 @@ function Sidebar({
     <div
       className="group peer hidden text-sidebar-foreground md:block"
       data-state={state}
-      data-collapsible={state === "collapsed" ? collapsible : ""}
+      data-collapsible={state === "collapsed" ? finalCollapsible : ""}
       data-variant={variant}
       data-side={side}
       data-slot="sidebar"
@@ -309,7 +352,7 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
     <main
       data-slot="sidebar-inset"
       className={cn(
-        "relative flex w-full flex-1 flex-col bg-background md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
+        "relative flex w-full flex-1 flex-col bg-background md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:peer-data-[collapsible=offcanvas]:ml-2",
         className,
       )}
       {...props}

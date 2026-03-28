@@ -16,16 +16,13 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  EllipsisVerticalIcon,
-  CircleUserRoundIcon,
-  CreditCardIcon,
-  BellIcon,
-  LogOutIcon,
-} from "lucide-react";
+import { EllipsisVerticalIcon, LogOutIcon } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export function NavUser({
   user,
+  menuItems,
 }: {
   user: {
     name: string;
@@ -33,8 +30,18 @@ export function NavUser({
     avatar: string;
     fallback?: string;
   };
+  menuItems: {
+    title: string;
+    url: string;
+    icon: React.ReactNode;
+  }[];
 }) {
   const { isMobile } = useSidebar();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    router.push("/logout");
+  };
 
   return (
     <SidebarMenu>
@@ -44,6 +51,7 @@ export function NavUser({
             <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              tooltip="Account"
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
                 <AvatarImage src={user.avatar} alt={user.name} />
@@ -84,21 +92,21 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <CircleUserRoundIcon />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BellIcon />
-                Notifications
-              </DropdownMenuItem>
+              {menuItems.map((item, index) => (
+                <DropdownMenuItem
+                  key={index}
+                  asChild
+                  className="cursor-pointer"
+                >
+                  <Link href={item.url} className="flex items-center w-full">
+                    {item.icon}
+                    {item.title}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
               <LogOutIcon />
               Log out
             </DropdownMenuItem>

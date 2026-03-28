@@ -69,10 +69,7 @@ export function NavMain({
       )}
 
       {items.map((group) => (
-        <SidebarGroup
-          key={group.title}
-          className="group-data-[collapsible=icon]:hidden"
-        >
+        <SidebarGroup key={group.title}>
           <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
           <SidebarMenu>
             {group.items.map((item) => (

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { cookies } from "next/headers";
 import "./globals.css";
 
 import { AppWrapper } from "@/components/app-wrapper";
@@ -15,11 +16,19 @@ export const metadata: Metadata = {
   description: "A modern helpdesk application.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
+  const defaultCollapsedMode = (
+    cookieStore.get("sidebar_collapsed_mode")?.value === "offcanvas"
+      ? "offcanvas"
+      : "icon"
+  ) as "icon" | "offcanvas";
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
@@ -29,7 +38,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AppWrapper>{children}</AppWrapper>
+          <AppWrapper
+            defaultOpen={defaultOpen}
+            defaultCollapsedMode={defaultCollapsedMode}
+          >
+            {children}
+          </AppWrapper>
         </ThemeProvider>
       </body>
     </html>

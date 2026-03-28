@@ -37,7 +37,7 @@ export function NavSecondary({
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
+              <SidebarMenuButton asChild tooltip={item.title}>
                 <Link href={item.url}>
                   {item.icon}
                   <span>{item.title}</span>
@@ -48,7 +48,7 @@ export function NavSecondary({
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton>
+                <SidebarMenuButton tooltip="Theme">
                   <Sun className="dark:hidden" />
                   <Moon className="hidden dark:block" />
                   <span>Theme</span>
