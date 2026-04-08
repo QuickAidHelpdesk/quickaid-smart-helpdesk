@@ -1,0 +1,7 @@
+.venv/
+local.settings.json
+__pycache__/
+.python_packages/
+.funcignore
+getting_started.md
+.vscode/
