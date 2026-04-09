@@ -1,7 +1,7 @@
 import json
 
 import azure.functions as func
-
+ 
 CORS_HEADERS = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
