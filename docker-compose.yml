@@ -10,12 +10,12 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:7071/api
 
-  azure-functions:
-    build: ./azure-functions
+  backend:
+    build: ./backend
     ports:
       - "7071:80"
     volumes:
-      - ./azure-functions:/home/site/wwwroot
+      - ./backend:/home/site/wwwroot
     environment:
       - AzureWebJobsStorage=UseDevelopmentStorage=true
       - FUNCTIONS_WORKER_RUNTIME=python
