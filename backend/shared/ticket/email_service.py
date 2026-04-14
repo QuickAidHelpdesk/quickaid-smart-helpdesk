@@ -5,17 +5,38 @@
     - send_ticket_confirmation_email  = user submits a ticket
     - send_status_update_email = ticket status changes
     - send_assignment_notification_email = ticket assigned to staff
+    
+    All three share a single base HTML template:
+        shared/email_templates/base_email_template.html
 """
 
 import os
 import logging
+from pathlib import Path
 
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, To, From
 
+from jinja2 import Environment, FileSystemLoader
+
 logger = logging.getLogger(__name__)
 
-# SendGrid client
+# ── Template loader 
+_TEMPLATE_DIR = Path(__file__).parent.parent / "email_templates" / "ticket"
+_TEMPLATE_FILE = "ticket_email_template.html"
+
+_jinja_env = Environment(
+    loader = FileSystemLoader(str(_TEMPLATE_DIR)),
+    autoescape = True,
+)
+
+# ── Render base template file to given variables
+def _render_template(**kwargs) -> str:
+    template = _jinja_env.get_template(_TEMPLATE_FILE)
+    return template.render(**kwargs)
+
+
+# ── SendGrid client
 def _send_email(to_email: str, subject: str, html_content: str) -> bool:
     try:
         message = Mail(
@@ -49,23 +70,65 @@ def _send_email(to_email: str, subject: str, html_content: str) -> bool:
         return False
         
 
-# ── Ticket Confirmation Email ───────────────────────────────────
+# ── Ticket Confirmation Email
 # Sent to user after they submit a ticket   
-def send_confirmation_email(to_email: str, ticket_id: str, subject: str):
+def send_confirmation_email(to_email: str, ticket):
     
-    # TODO: Implement SendGrid integration
-    logger.info(
-        "Confirmation email would be sent to %s for ticket %s: %s",
-        to_email, ticket_id, subject
+    subject = f"[QuickAid] Ticket Received — {ticket.ticket_id}"
+    
+    html_content = _render_template(
+        ticket = ticket,
+        header_title = "Your Ticket Has Been Received",
+        body_message = (
+            "Thank you for contacting QuickAid support. "
+            "We have received your ticket and will get back to you shortly."
+        ),
+        footer_note = "Reply to this ticket from your QuickAid dashboard.",
+        show_status = True,
+        show_assigned_to = False
     )
+    
+    return _send_email(to_email, subject, html_content)
 
 
-# ── Ticket Status Update Email ──────────────────────────────────────────
+# ── Ticket Status Update Email 
 # Sent to user when their ticket status changes
-def send_status_update_emal() -> bool: 
-    return True
+def send_status_update_emal(to_email: str, ticket) -> bool: 
+    
+    subject = f"[QuickAid] Ticket Update — {ticket.ticket_id}"
+    
+    html_content = _render_template(
+        ticket = ticket,
+        header_title = "Your Ticket Has Been Updated",
+        body_message = (
+            f"Your ticket status has changed to "
+            f"<strong>{ticket.status}</strong>. "
+            "We will continue to keep you informed of any further updates."
+        ),
+        footer_note = "Reply to this ticket from your QuickAid dashboard.",
+        show_status = True,
+        show_assigned_to = False
+    )
+    
+    return _send_email(to_email, subject, html_content)
 
-# ── Assignment Notification Email ───────────────────────────────
+
+# ── Assignment Notification Email 
 # Sent to staff member when a ticket is assigned to them
-def send_assignment_notification_email() -> bool:
-    return True
+def send_assignment_notification_email(to_email: str, ticket) -> bool:
+    
+    subject = f"[QuickAid] Ticket Assigned to You — {ticket.ticket_id}"
+    
+    html_content = _render_template(
+        ticket = ticket,
+        header_title = "A Ticket Has Been Assigned to You",
+        body_message = (
+            f"You have been assigned ticket <strong>{ticket.ticket_id}</strong>. "
+            "Please review the details below and respond as soon as possible."
+        ),
+        footer_note = "Log in to your QuickAid dashboard to manage this ticket.",
+        show_status = True,
+        show_assigned_to = False
+    )
+    
+    return _send_email(to_email, subject, html_content)

@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 from utils.cosmos_client import get_container, TICKETS_CONTAINER
 
 
-# %% Create (C) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Generates unique ticket ID.
+# ──  Create (C) ──────────────────────────────────────
+# ──  Generates unique ticket ID.
 def generate_ticket_id(container) -> str:
     try:
         query = "SELECT VALUE COUNT(1) FROM c"
@@ -26,7 +26,7 @@ def generate_ticket_id(container) -> str:
         return f"QA-{str(uuid.uuid4())[:8].upper()}"
 
 
-# Create ticket object and saves to Cosmos DB with default status Open.
+# ── Create ticket object and saves to Cosmos DB with default status Open.
 def create_ticket(data: dict) -> dict:
     container = get_container(TICKETS_CONTAINER)
     ticket_id = generate_ticket_id(container)
@@ -51,8 +51,8 @@ def create_ticket(data: dict) -> dict:
     return ticket
 
 
-# %% Read (R) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-# Get a list of submitted tickets by user email.
+# ──  Read (R) ──────────────────────────────────────
+# ── Get a list of submitted tickets by user email.
 def get_tickets_by_user_id(email: str, filters: dict = {}) -> list:
     container = get_container(TICKETS_CONTAINER)
 
@@ -95,7 +95,7 @@ def get_tickets_by_user_id(email: str, filters: dict = {}) -> list:
     ))
 
 
-# Get full ticket details by ticket ID.
+# ── Get full ticket details by ticket ID.
 def get_ticket_by_id(ticket_id: str) -> dict | None:
     container = get_container(TICKETS_CONTAINER)
 
@@ -113,7 +113,7 @@ def get_ticket_by_id(ticket_id: str) -> dict | None:
     return results[0] if results else None
 
 
-# Search tickets by subject or ticket ID.
+# ──  Search tickets by subject or ticket ID.
 def search_tickets(q: str) -> list:
     container = get_container(TICKETS_CONTAINER)
 
