@@ -1,0 +1,62 @@
+"""
+    # FR-02-02: Validate all required fields
+    # FR-02-03: Validate ticket categories
+"""
+
+VALID_CATEGORIES = [
+    "IT Support",
+    "Facilities",
+    "Academic Services",
+    "Library",
+    "Finance",
+    "General Inquiry"
+]
+
+VALID_PRIORITIES = ["Low", "Medium", "High", "Critical"]
+
+def validate_ticket(data: dict) -> list:
+
+    # List of error(s) identified
+    errors = []
+
+    # Check required fields
+    required_fields = ["subject", "description", "category", "priority", "email"]
+    for field in required_fields:
+        if field not in data or not str(data[field]).strip():
+            errors.append(f"{field} is required")
+
+    # Return if missing fields
+    if errors:
+        return errors
+
+    # Validate subject length
+    if len(data["subject"].strip()) < 5:
+        errors.append("Subject must be at least 5 characters")
+    if len(data["subject"].strip()) > 100:
+        errors.append("Subject must not exceed 100 characters")
+
+    # Validate description length
+    if len(data["description"].strip()) < 10:
+        errors.append("Description must be at least 10 characters")
+    if len(data["description"].strip()) > 1000:
+        errors.append("Description must not exceed 1000 characters")
+
+    # Validate category  FR-02-03
+    if data["category"] not in VALID_CATEGORIES:
+        errors.append(
+            f"Invalid category. Choose from: {', '.join(VALID_CATEGORIES)}"
+        )
+
+    # Validate priority
+    if data["priority"] not in VALID_PRIORITIES:
+        errors.append(
+            f"Invalid priority. Choose from: {', '.join(VALID_PRIORITIES)}"
+        )
+
+    # Validate email format
+    import re
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, data["email"]):
+        errors.append("Invalid email format")
+
+    return errors

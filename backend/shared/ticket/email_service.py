@@ -1,0 +1,12 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def send_confirmation_email(to_email: str, ticket_id: str, subject: str):
+    """Send ticket submission confirmation email via SendGrid."""
+    # TODO: Implement SendGrid integration
+    logger.info(
+        "Confirmation email would be sent to %s for ticket %s: %s",
+        to_email, ticket_id, subject
+    )
