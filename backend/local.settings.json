@@ -1,0 +1,15 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AzureWebJobsStorage": "",
+    "COSMOS_CONNECTION_STRING": "AccountEndpoint=https://quickaid-cosmosdb.documents.azure.com:443/;AccountKey=H5tb7Qm7ODTOYB206fiTLW8e6gEqBzIBdwjlPcXAeyURom0Tr6B1nDg9LQTFNwa6C1MQkt2kn0i3ACDbQVn2DA==;",
+    "COSMOS_DATABASE_NAME": "quickaid-db",
+    "COSMOS_CONTAINER_TICKETS": "tickets",
+    "COSMOS_CONTAINER_USERS": "users",
+    "SENDGRID_API_KEY": ""
+  },
+  "Host": {
+    "CORS": "*"
+  }
+}
