@@ -89,3 +89,24 @@ def upsert_user(data: dict) -> dict:
 
     # Create new user
     return create_user(data)
+
+
+# Get all users with a specific role.
+def get_users_by_role(role: str) -> list:
+    container = get_container(USERS_CONTAINER)
+
+    query = """
+        SELECT c.user_id, c.display_name, c.email
+        FROM c
+        WHERE c.role = @role
+        ORDER BY c.display_name
+    """
+    params = [
+        {"name": "@role", "value": role}
+    ]
+
+    return list(container.query_items(
+        query=query,
+        parameters=params,
+        enable_cross_partition_query=True,
+    ))

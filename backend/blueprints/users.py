@@ -1,9 +1,9 @@
 """
-Users Blueprint to handle endpoints/API
+Users Blueprint — public endpoints for user management
 API:
-  POST /api/users/login - Upsert user on login (create if new, return if existing)
-  GET /api/users - Get user by email query param
-  GET /api/users/{userId} - Get user by ID
+  POST /api/users/login    - Upsert user on login (create if new, return if existing)
+  GET  /api/users          - Get user by email query param
+  GET  /api/users/{userId} - Get user by ID
 """
 
 import logging

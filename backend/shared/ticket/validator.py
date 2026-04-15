@@ -14,6 +14,15 @@ VALID_CATEGORIES = [
 
 VALID_PRIORITIES = ["Low", "Medium", "High", "Critical"]
 
+VALID_STATUSES = ["Open", "In Progress", "Resolved", "Closed"]
+
+VALID_STATUS_TRANSITIONS = {
+    "Open": ["In Progress", "Closed"],
+    "In Progress": ["Resolved", "Closed"],
+    "Resolved": ["Closed", "In Progress"],
+    "Closed": [],
+}
+
 def validate_ticket(data: dict) -> list:
 
     # List of error(s) identified
@@ -58,5 +67,50 @@ def validate_ticket(data: dict) -> list:
     email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     if not re.match(email_pattern, data["email"]):
         errors.append("Invalid email format")
+
+    return errors
+
+
+# FR-08-01: Validate status update request
+def validate_status_update(data: dict, current_status: str = None) -> list:
+    errors = []
+
+    if "status" not in data or not str(data["status"]).strip():
+        errors.append("status is required")
+        return errors
+
+    new_status = data["status"].strip()
+
+    if new_status not in VALID_STATUSES:
+        errors.append(
+            f"Invalid status. Choose from: {', '.join(VALID_STATUSES)}"
+        )
+        return errors
+
+    # Validate transition if current status is provided
+    if current_status:
+        allowed = VALID_STATUS_TRANSITIONS.get(current_status, [])
+        if new_status not in allowed:
+            errors.append(
+                f"Cannot transition from '{current_status}' to '{new_status}'. "
+                f"Allowed: {', '.join(allowed) if allowed else 'none (terminal state)'}."
+            )
+
+    return errors
+
+
+# FR-10-02: Validate ticket assignment request
+def validate_assignment(data: dict) -> list:
+    import re
+
+    errors = []
+
+    if "assigned_to" not in data or not str(data["assigned_to"]).strip():
+        errors.append("assigned_to (staff email) is required")
+        return errors
+
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, data["assigned_to"].strip()):
+        errors.append("Invalid email format for assigned_to")
 
     return errors

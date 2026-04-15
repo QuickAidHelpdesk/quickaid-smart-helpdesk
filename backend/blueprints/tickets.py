@@ -1,10 +1,10 @@
 """
-Tickets Blueprint to handle endpoints/API
+Tickets Blueprint — public endpoints for ticket submission and tracking (UC-2, UC-4, UC-6)
 API:
-  POST/api/submit_ticket - Submit a new helpdesk ticket
-  GET/api/tickets - Display a list of tickets with filters
-  GET/api/tickets/{ticketId} - Display a full ticket details
-  GET/api/tickets/search?q= - Search ticket by subject or ticket ID
+  POST /api/submit_ticket        - Submit a new helpdesk ticket
+  GET  /api/tickets              - Display a list of tickets with filters
+  GET  /api/tickets/{ticketId}   - Display a full ticket details
+  GET  /api/tickets/search?q=    - Search ticket by subject or ticket ID
 """
 
 import logging

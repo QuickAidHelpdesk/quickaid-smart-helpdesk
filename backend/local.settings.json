@@ -7,7 +7,8 @@
     "COSMOS_DATABASE_NAME": "quickaid-db",
     "COSMOS_CONTAINER_TICKETS": "tickets",
     "COSMOS_CONTAINER_USERS": "users",
-    "SENDGRID_API_KEY": ""
+    "SENDGRID_API_KEY": "",
+    "COSMOS_CONTAINER_STATUS_HISTORY": "status_history"
   },
   "Host": {
     "CORS": "*"

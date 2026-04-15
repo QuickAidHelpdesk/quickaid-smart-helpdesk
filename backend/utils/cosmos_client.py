@@ -8,6 +8,7 @@ COSMOS_DATABASE_NAME = os.environ["COSMOS_DATABASE_NAME"]
 # Container names
 TICKETS_CONTAINER = os.environ["COSMOS_CONTAINER_TICKETS"]
 USERS_CONTAINER = os.environ["COSMOS_CONTAINER_USERS"]
+STATUS_HISTORY_CONTAINER = os.environ.get("COSMOS_CONTAINER_STATUS_HISTORY", "status_history")
 
 # Initialize Cosmos client and database
 _client = CosmosClient.from_connection_string(COSMOS_CONNECTION_STRING)
