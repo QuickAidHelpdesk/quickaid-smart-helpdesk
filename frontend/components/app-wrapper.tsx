@@ -15,7 +15,7 @@ export function AppWrapper({
   defaultCollapsedMode?: "icon" | "offcanvas";
 }) {
   const pathname = usePathname();
-  const isWrapperDisabled = ["/", "/login", "/logout"].includes(pathname);
+  const isWrapperDisabled = ["/", "/login", "/logout", "/register"].includes(pathname);
 
   if (isWrapperDisabled) {
     return <>{children}</>;

@@ -2,18 +2,29 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ArrowDown } from "lucide-react";
+import { ArrowRight, ArrowDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Signature } from "@/components/signature";
-
 import { SiteFooter } from "@/components/site-footer";
+import { useAuth } from "@/context/auth-context";
 
 export default function Home() {
   const router = useRouter();
+  const { isLoading } = useAuth();
 
   const handleLoginRoute = () => {
     router.push("/login");
   };
+
+  // Show loading screen while MSAL processes the redirect from Microsoft
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Signing you in...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
