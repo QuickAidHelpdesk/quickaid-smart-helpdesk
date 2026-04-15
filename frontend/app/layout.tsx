@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import "./globals.css";
 
 import { AppWrapper } from "@/components/app-wrapper";
+import { AuthProvider } from "@/context/auth-context";
 import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({
@@ -38,12 +39,14 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AppWrapper
-            defaultOpen={defaultOpen}
-            defaultCollapsedMode={defaultCollapsedMode}
-          >
-            {children}
-          </AppWrapper>
+          <AuthProvider>
+            <AppWrapper
+              defaultOpen={defaultOpen}
+              defaultCollapsedMode={defaultCollapsedMode}
+            >
+              {children}
+            </AppWrapper>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

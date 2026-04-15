@@ -19,6 +19,7 @@ import {
 import { EllipsisVerticalIcon, LogOutIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
 
 export function NavUser({
   user,
@@ -38,9 +39,11 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar();
   const router = useRouter();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    router.push("/logout");
+    logout();
+    router.push("/login");
   };
 
   return (

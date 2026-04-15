@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 
 import { siteConfig } from "@/config/site";
+import { useAuth } from "@/context/auth-context";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
@@ -19,6 +20,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user } = useAuth();
   const Logo = siteConfig.company.logo;
 
   return (
@@ -49,7 +51,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={siteConfig.user} menuItems={siteConfig.navUser} />
+        <NavUser
+          user={{
+            name: user?.display_name ?? siteConfig.user.name,
+            email: user?.email ?? siteConfig.user.email,
+            avatar: siteConfig.user.avatar,
+            fallback: user?.display_name?.[0] ?? siteConfig.user.fallback,
+          }}
+          menuItems={siteConfig.navUser}
+        />
       </SidebarFooter>
     </Sidebar>
   );

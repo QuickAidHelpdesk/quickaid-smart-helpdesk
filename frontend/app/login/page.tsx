@@ -1,8 +1,8 @@
 "use client";
 
-import { GalleryVerticalEnd } from "lucide-react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,12 +11,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useAuth } from "@/context/auth-context";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const { login } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = () => {
-    router.push("/dashboard");
+  const handleLogin = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await login();
+      // Page redirects to Microsoft — won't reach here
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Login failed. Please try again."
+      );
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -32,24 +45,34 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-6">
+                {error && (
+                  <p className="text-sm text-destructive text-center">
+                    {error}
+                  </p>
+                )}
                 <Button
                   variant="outline"
                   className="w-full flex items-center gap-3 relative h-11"
                   type="button"
                   onClick={handleLogin}
+                  disabled={isLoading}
                 >
-                  <svg
-                    className="w-5 h-5"
-                    viewBox="0 0 21 21"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <rect x="1" y="1" width="9" height="9" fill="#f25022" />
-                    <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
-                    <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
-                    <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
-                  </svg>
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <svg
+                      className="w-5 h-5"
+                      viewBox="0 0 21 21"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+                      <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+                      <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+                      <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+                    </svg>
+                  )}
                   <span className="font-medium text-foreground">
-                    Continue with Entra ID
+                    {isLoading ? "Signing in..." : "Continue with Entra ID"}
                   </span>
                 </Button>
               </div>
