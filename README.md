@@ -23,7 +23,7 @@ This application was developed as a Capstone Project for the MyMahir Microsoft D
 - **Ticket Tracking**: Users can retrieve and check the status of their submitted tickets via their email addresses.
 - **Role-Based Access**: Three user roles — Student/Staff, Support Agent, and Admin — each with appropriate permissions.
 - **Ticket Management**: Support staff can update ticket statuses; admins can assign tickets and add internal notes.
-- **Automated Notifications**: Email confirmations on ticket creation, status changes, and ticket assignments via SendGrid.
+- **Automated Notifications**: Email confirmations on ticket creation, status changes, and ticket assignments via Azure Communication Services.
 
 ## Architecture and Technology Stack
 
@@ -40,7 +40,7 @@ The project uses a decoupled client-server architecture with a React frontend an
 
 - **Runtime**: Azure Functions (Python, V2 model)
 - **Database**: Azure Cosmos DB (NoSQL, Core SQL API)
-- **Email**: SendGrid API for transactional emails
+- **Email**: Azure Communication Services (Email) for transactional emails
 - **Security**: Azure Key Vault for secret management
 - **Monitoring**: Azure Application Insights (optional)
 
@@ -83,7 +83,7 @@ QuickSmartAid/
 │       ├── validators.py           # Request input validation
 │       ├── user_service.py         # User CRUD operations
 │       ├── ticket_service.py       # Ticket CRUD & status operations
-│       └── email_service.py        # SendGrid email notifications
+│       └── email_service.py        # Azure Communication Services email notifications
 │
 └── docs/                           # Project documentation
 ```
@@ -108,7 +108,7 @@ QuickSmartAid/
 - **Azure Functions Core Tools** v4 (backend local development)
 - **Docker** and **Docker Compose** (optional, for containerised setup)
 - **Microsoft Azure** subscription (for production deployment)
-- **SendGrid** account (for email notifications)
+- **Azure Communication Services** with Email enabled (for email notifications)
 - **Microsoft Entra ID** app registration (for authentication)
 
 ---
@@ -146,7 +146,8 @@ Create `backend/local.settings.json` with the following structure:
     "COSMOS_CONTAINER_TICKETS": "tickets",
     "COSMOS_CONTAINER_USERS": "users",
     "COSMOS_CONTAINER_STATUS_HISTORY": "status_history",
-    "SENDGRID_API_KEY": "<your-sendgrid-api-key>"
+    "EMAIL_CONNECTION_STRING": "<your-azure-communication-services-connection-string>",
+    "EMAIL_SENDER_ADDRESS": "<your-verified-sender-address>"
   },
   "Host": {
     "CORS": "*"
@@ -161,7 +162,8 @@ Create `backend/local.settings.json` with the following structure:
 | `COSMOS_CONTAINER_TICKETS` | Container for tickets | Default: `tickets` |
 | `COSMOS_CONTAINER_USERS` | Container for users | Default: `users` |
 | `COSMOS_CONTAINER_STATUS_HISTORY` | Container for status history | Default: `status_history` |
-| `SENDGRID_API_KEY` | SendGrid API key for email delivery | SendGrid Dashboard → Settings → API Keys |
+| `EMAIL_CONNECTION_STRING` | Azure Communication Services connection string | Azure Portal → Communication Services → Keys → Connection String |
+| `EMAIL_SENDER_ADDRESS` | Verified sender email address (e.g., `DoNotReply@xxx.azurecomm.net`) | Azure Portal → Email Communication Services → Provision Domains → MailFrom addresses |
 
 > **Note:** `local.settings.json` is gitignored and should never be committed. Each developer must create their own copy.
 
@@ -210,8 +212,8 @@ Docker Compose runs both services together. Backend environment variables are pa
 
 ```env
 COSMOS_CONNECTION_STRING=<your-cosmos-db-connection-string>
-SENDGRID_API_KEY=<your-sendgrid-api-key>
-SENDGRID_FROM_EMAIL=noreply@quickaid.com
+EMAIL_CONNECTION_STRING=<your-azure-communication-services-connection-string>
+EMAIL_SENDER_ADDRESS=DoNotReply@<your-azure-subdomain>.azurecomm.net
 ```
 
 ### 2. Build and start
@@ -286,7 +288,8 @@ az functionapp config appsettings set \
     COSMOS_CONTAINER_TICKETS="tickets" \
     COSMOS_CONTAINER_USERS="users" \
     COSMOS_CONTAINER_STATUS_HISTORY="status_history" \
-    SENDGRID_API_KEY="<your-sendgrid-api-key>"
+    EMAIL_CONNECTION_STRING="<your-azure-communication-services-connection-string>" \
+    EMAIL_SENDER_ADDRESS="DoNotReply@<your-azure-subdomain>.azurecomm.net"
 ```
 
 ### 4. Deploy

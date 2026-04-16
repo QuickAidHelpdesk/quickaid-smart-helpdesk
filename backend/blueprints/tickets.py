@@ -59,12 +59,15 @@ def submit_ticket(req: func.HttpRequest) -> func.HttpResponse:
         logger.error("Failed to create ticket: %s", e)
         return error_response("Failed to create ticket.", 500)
 
-    # Send confirmation email (FR-02-05)
+    # Send confirmation email (FR-03-01, FR-03-03)
     try:
         send_confirmation_email(
             to_email=ticket["email"],
             ticket_id=ticket["ticket_id"],
             subject=ticket["subject"],
+            category=ticket["category"],
+            priority=ticket["priority"],
+            description=ticket["description"],
         )
     except Exception as e:
         # Email failure should not block the success response
