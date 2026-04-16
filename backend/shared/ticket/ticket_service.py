@@ -31,6 +31,7 @@ def create_ticket(data: dict) -> dict:
     container = get_container(TICKETS_CONTAINER)
     ticket_id = generate_ticket_id(container)
 
+    # todo: add user if
     ticket = {
         "id": ticket_id,
         "ticket_id": ticket_id,
@@ -96,12 +97,12 @@ def get_tickets_by_user_id(email: str, filters: dict = {}) -> list:
 
 
 # ── Get full ticket details by ticket ID.
-def get_ticket_by_id(ticket_id: str) -> dict | None:
+def get_ticket_by_id(id: str) -> dict | None:
     container = get_container(TICKETS_CONTAINER)
 
     query = "SELECT * FROM c WHERE c.ticket_id = @ticket_id"
     params = [
-        {"name": "@ticket_id", "value": ticket_id}
+        {"name": "@ticket_id", "value": id}
     ]
 
     results = list(container.query_items(
@@ -128,10 +129,10 @@ def search_tickets(q: str) -> list:
             c.created_at
         FROM c
         WHERE
-            c.ticket_id = @q_exact OR
             CONTAINS(LOWER(c.subject), @q, true)
         ORDER BY c.created_at DESC
     """
+    # c.ticket_id = @q_exact OR
 
     params = [
         {"name": "@q_exact", "value": q},

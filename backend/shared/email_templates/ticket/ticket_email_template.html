@@ -4,7 +4,7 @@
     <h2 style="color: #2563eb; text-align: center;">{{ header_title }}</h2>
 
     <!-- greeting -->
-    <p style="font-size: 16px; line-height: 1.5;">Hi <strong>{{ ticket.user_display_name }}</strong>,</p>
+    <p style="font-size: 16px; line-height: 1.5;">Hi <strong>ticket.user_display_name</strong>,</p>
 
     <!-- description -->
     <p style="font-size: 16px; line-height: 1.5; margin-top: 10px;">{{ body_message }}</p>
@@ -40,6 +40,7 @@
             <tr>
                 <td style="padding: 8px 0; font-size: 14px; color: #666666;">Status</td>
                 <td style="padding: 8px 0; font-size: 14px;">
+                    <!-- <span style="background-color: {{ style.bg }} ; color: {{ style.text }}; padding: 4px 10px; border-radius: 4px; font-weight: 600;">{{ ticket.status }}</span> -->
                     <span style="background-color: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 4px; font-weight: 600;">{{ ticket.status }}</span>
                 </td>
             </tr>

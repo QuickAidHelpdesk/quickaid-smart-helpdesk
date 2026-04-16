@@ -20,6 +20,9 @@ from sendgrid.helpers.mail import Mail, To, From
 from jinja2 import Environment, FileSystemLoader
 
 logger = logging.getLogger(__name__)
+_FROM_EMAIL = os.getenv("FROM_EMAIL")
+_FROM_NAME = os.getenv("FROM_NAME")
+_SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 
 # ── Template loader 
 _TEMPLATE_DIR = Path(__file__).parent.parent / "email_templates" / "ticket"
@@ -29,6 +32,18 @@ _jinja_env = Environment(
     loader = FileSystemLoader(str(_TEMPLATE_DIR)),
     autoescape = True,
 )
+
+# ── Styling ticket status
+def get_status_style(status: str):
+    status_styles = {
+        "open": {"bg": "#dcfce7", "text": "#166534"},
+        "close": {"bg": "#fee2e2", "text": "#991b1b"}
+    }
+
+    return status_styles.get(
+        status.lower(),
+        {"bg": "#e5e7eb", "text": "#374151"}
+    )
 
 # ── Render base template file to given variables
 def _render_template(**kwargs) -> str:
@@ -40,7 +55,7 @@ def _render_template(**kwargs) -> str:
 def _send_email(to_email: str, subject: str, html_content: str) -> bool:
     try:
         message = Mail(
-            from_mail = From(_FROM_EMAIL, _FROM_NAME),
+            from_email = From(_FROM_EMAIL, _FROM_NAME),
             to_emails = To(to_email),
             subject = subject,
             html_content = html_content
@@ -74,10 +89,11 @@ def _send_email(to_email: str, subject: str, html_content: str) -> bool:
 # Sent to user after they submit a ticket   
 def send_confirmation_email(to_email: str, ticket):
     
-    subject = f"[QuickAid] Ticket Received — {ticket.ticket_id}"
+    subject = f"[QuickAid] Ticket Received — {ticket['ticket_id']}"
     
     html_content = _render_template(
         ticket = ticket,
+        style = get_status_style(ticket["status"]),
         header_title = "Your Ticket Has Been Received",
         body_message = (
             "Thank you for contacting QuickAid support. "
@@ -95,10 +111,11 @@ def send_confirmation_email(to_email: str, ticket):
 # Sent to user when their ticket status changes
 def send_status_update_emal(to_email: str, ticket) -> bool: 
     
-    subject = f"[QuickAid] Ticket Update — {ticket.ticket_id}"
+    subject = f"[QuickAid] Ticket Update — {ticket['ticket_id']}"
     
     html_content = _render_template(
         ticket = ticket,
+        style = get_status_style(ticket.status),
         header_title = "Your Ticket Has Been Updated",
         body_message = (
             f"Your ticket status has changed to "
@@ -117,7 +134,7 @@ def send_status_update_emal(to_email: str, ticket) -> bool:
 # Sent to staff member when a ticket is assigned to them
 def send_assignment_notification_email(to_email: str, ticket) -> bool:
     
-    subject = f"[QuickAid] Ticket Assigned to You — {ticket.ticket_id}"
+    subject = f"[QuickAid] Ticket Assigned to You — {ticket['ticket_id']}"
     
     html_content = _render_template(
         ticket = ticket,

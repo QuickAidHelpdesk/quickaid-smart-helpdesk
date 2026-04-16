@@ -27,10 +27,11 @@ from utils.http_helpers import (
 bp = func.Blueprint()
 logger = logging.getLogger(__name__)
 
-# ── POST/api/submit_ticket ──────────────────────────────────────────
+# ── POST ─────────────────────────────────────────────────────────────────────
+# ── POST/api/submit_ticket
 # Submit a new helpdesk ticket
 @bp.route(route="submit_ticket", methods=["POST", "OPTIONS"])
-def submit_ticket(req: func.HttpRequest) -> func.HttpResponse:
+def submit_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     # Handle CORS preflight
     if req.method == "OPTIONS":
@@ -56,9 +57,8 @@ def submit_ticket(req: func.HttpRequest) -> func.HttpResponse:
     # Send confirmation email (FR-02-05)
     try:
         send_confirmation_email(
-            to_email=ticket["email"],
-            ticket_id=ticket["ticket_id"],
-            subject=ticket["subject"],
+            to_email = ticket["email"],
+            ticket = ticket,
         )
     except Exception as e:
         # Email failure should not block the success response
@@ -79,7 +79,8 @@ def submit_ticket(req: func.HttpRequest) -> func.HttpResponse:
     )
 
 
-# ── GET/api/tickets ─────────────────────────────────────────────────
+# ── GET ─────────────────────────────────────────────────────────────────────
+# ── GET/api/tickets 
 # Display a list of tickets with filters
 # Filter by status and category
 @bp.route(route="tickets", methods=["GET", "OPTIONS"])
@@ -115,7 +116,7 @@ def get_tickets_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         return error_response("Failed to retrieve tickets. Please try again later.", 500)
 
 
-# ── GET /api/tickets/search?q= ───────────────────────────────────────
+# ── GET /api/tickets/search?q=
 # Search ticket by subject or ticket ID
 @bp.route(route="tickets/search", methods=["GET", "OPTIONS"])
 def search_tickets_endpoint(req: func.HttpRequest) -> func.HttpResponse:
@@ -144,22 +145,25 @@ def search_tickets_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         return error_response("Search failed. Please try again later.", 500)
 
 
-# ── GET/api/tickets/{ticketId} ──────────────────────────────────────
+# ── GET/api/tickets/ticketId?id=
 # Display a ticket full details
-@bp.route(route="tickets/{ticketId}", methods=["GET", "OPTIONS"])
+@bp.route(route="tickets/ticketId", methods=["GET", "OPTIONS"])
 def get_ticket_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     # Handle CORS preflight
     if req.method == "OPTIONS":
         return preflight_response()
 
-    ticket_id = req.route_params.get("ticketId")
+    # ticket_id = req.route_params.get("ticketId")
+    id = req.params.get("id", "").strip()
+    if not id:
+        return error_response("query or search parameter is required.", 400)
 
     try:
-        ticket = get_ticket_by_id(ticket_id)
+        ticket = get_ticket_by_id(id)
 
         if not ticket:
-            return error_response("Ticket not found.", 404)
+            return error_response("Ticket not found (by ID).", 404)
 
         return json_response(ticket)
 
