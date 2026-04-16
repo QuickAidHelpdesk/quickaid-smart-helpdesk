@@ -1,9 +1,12 @@
 """
 Admin Blueprint — endpoints for admin portal (UC-10)
 API:
-  GET   /api/admin/tickets                    - View all tickets with filters
-  PATCH /api/admin/tickets/{ticketId}/assign  - Assign ticket to staff
-  GET   /api/admin/staff                      - List all staff members
+  GET   /api/manage/tickets                    - View all tickets with filters
+  PATCH /api/manage/tickets/{ticketId}/assign  - Assign ticket to staff
+  GET   /api/manage/staff                      - List all staff members
+
+Note: Uses 'manage' prefix instead of 'admin' because Azure Functions
+reserves the 'admin' route segment for its built-in admin API.
 """
 
 import logging
@@ -28,9 +31,9 @@ bp = func.Blueprint()
 logger = logging.getLogger(__name__)
 
 
-# ── GET /api/admin/tickets ─────────────────────────────────────────
+# ── GET /api/manage/tickets ────────────────────────────────────────
 # FR-10-01: View all tickets (admin only)
-@bp.route(route="admin/tickets", methods=["GET", "OPTIONS"])
+@bp.route(route="manage/tickets", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_admin_tickets(req: func.HttpRequest) -> func.HttpResponse:
 
     if req.method == "OPTIONS":
@@ -60,9 +63,9 @@ def get_admin_tickets(req: func.HttpRequest) -> func.HttpResponse:
         return error_response("Failed to retrieve tickets.", 500)
 
 
-# ── PATCH /api/admin/tickets/{ticketId}/assign ───��─────────────────
+# ── PATCH /api/manage/tickets/{ticketId}/assign ───────────────────
 # FR-10-02: Assign ticket to a support staff member (admin only)
-@bp.route(route="admin/tickets/{ticketId}/assign", methods=["PATCH", "OPTIONS"])
+@bp.route(route="manage/tickets/{ticketId}/assign", methods=["PATCH", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def assign_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     if req.method == "OPTIONS":
@@ -138,9 +141,9 @@ def assign_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     })
 
 
-# ── GET /api/admin/staff ────��─────────────────────────────────────
+# ── GET /api/manage/staff ─────────────────────────────────────────
 # List all staff members (admin only, for ticket assignment UI)
-@bp.route(route="admin/staff", methods=["GET", "OPTIONS"])
+@bp.route(route="manage/staff", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_staff_list(req: func.HttpRequest) -> func.HttpResponse:
 
     if req.method == "OPTIONS":

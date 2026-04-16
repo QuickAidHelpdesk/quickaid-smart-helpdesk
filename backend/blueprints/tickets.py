@@ -18,6 +18,7 @@ from shared.ticket.ticket_service import (
     get_ticket_by_id,
 )
 from shared.ticket.validator import validate_ticket
+from utils.auth import require_role
 from utils.http_helpers import (
     error_response,
     json_response,
@@ -29,12 +30,17 @@ logger = logging.getLogger(__name__)
 
 # ── POST/api/submit_ticket ──────────────────────────────────────────
 # Submit a new helpdesk ticket
-@bp.route(route="submit_ticket", methods=["POST", "OPTIONS"])
+@bp.route(route="submit_ticket", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def submit_ticket(req: func.HttpRequest) -> func.HttpResponse:
 
     # Handle CORS preflight
     if req.method == "OPTIONS":
         return preflight_response()
+
+    # Auth check: any logged-in user can submit tickets
+    user, err = require_role(req, ["student", "staff", "admin"])
+    if err:
+        return err
 
     try:
         data = req.get_json()
@@ -82,16 +88,20 @@ def submit_ticket(req: func.HttpRequest) -> func.HttpResponse:
 # ── GET/api/tickets ─────────────────────────────────────────────────
 # Display a list of tickets with filters
 # Filter by status and category
-@bp.route(route="tickets", methods=["GET", "OPTIONS"])
+@bp.route(route="tickets", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_tickets_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     # Handle CORS preflight
     if req.method == "OPTIONS":
         return preflight_response()
 
-    email = req.params.get("email")
-    if not email:
-        return error_response("user email is required", 400)
+    # Auth check: any logged-in user can view their own tickets
+    user, err = require_role(req, ["student", "staff", "admin"])
+    if err:
+        return err
+
+    # Use authenticated user's email to prevent querying other users' tickets
+    email = user["email"]
 
     # Filter by status and category (FR-04-03)
     filters = {
@@ -117,12 +127,17 @@ def get_tickets_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
 # ── GET /api/tickets/search?q= ───────────────────────────────────────
 # Search ticket by subject or ticket ID
-@bp.route(route="tickets/search", methods=["GET", "OPTIONS"])
+@bp.route(route="tickets/search", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def search_tickets_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     # Handle CORS preflight
     if req.method == "OPTIONS":
         return preflight_response()
+
+    # Auth check: any logged-in user can search tickets
+    user, err = require_role(req, ["student", "staff", "admin"])
+    if err:
+        return err
 
     q = req.params.get("q", "").strip()
     if not q:
@@ -146,12 +161,17 @@ def search_tickets_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
 # ── GET/api/tickets/{ticketId} ──────────────────────────────────────
 # Display a ticket full details
-@bp.route(route="tickets/{ticketId}", methods=["GET", "OPTIONS"])
+@bp.route(route="tickets/{ticketId}", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_ticket_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     # Handle CORS preflight
     if req.method == "OPTIONS":
         return preflight_response()
+
+    # Auth check: any logged-in user can view ticket details
+    user, err = require_role(req, ["student", "staff", "admin"])
+    if err:
+        return err
 
     ticket_id = req.route_params.get("ticketId")
 

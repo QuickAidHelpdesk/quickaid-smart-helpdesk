@@ -15,6 +15,7 @@ from shared.user.user_service import (
     get_user_by_id,
 )
 from shared.user.validator import validate_user
+from utils.auth import require_role
 from utils.http_helpers import (
     error_response,
     json_response,
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 # ── POST /api/users/login ──────────────────────────────────────────
 # Upsert user on login — receives Entra ID claims, creates or returns existing
-@bp.route(route="users/login", methods=["POST", "OPTIONS"])
+@bp.route(route="users/login", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def user_login(req: func.HttpRequest) -> func.HttpResponse:
 
     # Handle CORS preflight
@@ -59,7 +60,7 @@ def user_login(req: func.HttpRequest) -> func.HttpResponse:
 
 # ── GET /api/users ─────────────────────────────────────────────────
 # Get user by email query param
-@bp.route(route="users", methods=["GET", "OPTIONS"])
+@bp.route(route="users", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_user_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     # Handle CORS preflight
@@ -85,12 +86,17 @@ def get_user_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
 # ── GET /api/users/{userId} ────────────────────────────────────────
 # Get user by user ID
-@bp.route(route="users/{userId}", methods=["GET", "OPTIONS"])
+@bp.route(route="users/{userId}", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_user_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     # Handle CORS preflight
     if req.method == "OPTIONS":
         return preflight_response()
+
+    # Auth check: any logged-in user can look up user by ID
+    user, err = require_role(req, ["student", "staff", "admin"])
+    if err:
+        return err
 
     user_id = req.route_params.get("userId")
 

@@ -20,6 +20,26 @@ import type { User } from "@/types/user";
 
 const STORAGE_KEY = "quickaid_user";
 const PENDING_KEY = "quickaid_pending";
+const SESSION_COOKIE = "quickaid_session";
+
+function setSessionCookie(email: string) {
+  document.cookie = `${SESSION_COOKIE}=${encodeURIComponent(email)}; path=/; max-age=86400; SameSite=Lax`;
+}
+
+function clearSessionCookie() {
+  document.cookie = `${SESSION_COOKIE}=; path=/; max-age=0`;
+}
+
+function getDashboardPath(role: string): string {
+  switch (role) {
+    case "admin":
+      return "/dashboard";
+    case "staff":
+      return "/dashboard";
+    default:
+      return "/dashboard";
+  }
+}
 
 export interface PendingUser {
   user_id: string;
@@ -77,7 +97,8 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
             );
             setUser(res.user);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(res.user));
-            window.location.href = "/dashboard";
+            setSessionCookie(res.user.email);
+            window.location.href = getDashboardPath(res.user.role);
           } catch {
             // User not found (404) — new user, show registration
             const pending: PendingUser = { user_id: oid, display_name: displayName, email };
@@ -97,10 +118,15 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
           try {
-            setUser(JSON.parse(stored));
+            const parsed = JSON.parse(stored);
+            setUser(parsed);
+            setSessionCookie(parsed.email);
           } catch {
             localStorage.removeItem(STORAGE_KEY);
+            clearSessionCookie();
           }
+        } else {
+          clearSessionCookie();
         }
 
         // Hydrate pending user if on /register
@@ -132,6 +158,7 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     setPendingUser(null);
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(PENDING_KEY);
+    clearSessionCookie();
     instance.logoutRedirect({ postLogoutRedirectUri: "/login" });
   }, [instance]);
 
@@ -154,7 +181,8 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
       setPendingUser(null);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(res.user));
       localStorage.removeItem(PENDING_KEY);
-      window.location.href = "/dashboard";
+      setSessionCookie(res.user.email);
+      window.location.href = getDashboardPath(res.user.role);
     },
     [pendingUser]
   );

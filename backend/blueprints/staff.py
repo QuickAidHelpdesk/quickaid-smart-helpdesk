@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 # ── GET /api/staff/tickets ─────────────────────────────────────────
 # FR-07-01: View tickets assigned to the logged-in staff member
-@bp.route(route="staff/tickets", methods=["GET", "OPTIONS"])
+@bp.route(route="staff/tickets", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_staff_tickets(req: func.HttpRequest) -> func.HttpResponse:
 
     if req.method == "OPTIONS":
@@ -65,7 +65,7 @@ def get_staff_tickets(req: func.HttpRequest) -> func.HttpResponse:
 
 # ── PATCH /api/staff/tickets/{ticketId}/status ─────────────────────
 # FR-08-01: Update ticket status (staff updates their assigned tickets)
-@bp.route(route="staff/tickets/{ticketId}/status", methods=["PATCH", "OPTIONS"])
+@bp.route(route="staff/tickets/{ticketId}/status", methods=["PATCH", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def update_ticket_status_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     if req.method == "OPTIONS":
