@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { siteConfig } from "@/config/site";
 
 export function AppWrapper({
   children,
@@ -15,7 +16,7 @@ export function AppWrapper({
   defaultCollapsedMode?: "icon" | "offcanvas";
 }) {
   const pathname = usePathname();
-  const isWrapperDisabled = ["/", "/login", "/logout", "/register"].includes(pathname);
+  const isWrapperDisabled = siteConfig.wrapperDisabledPaths.includes(pathname);
 
   if (isWrapperDisabled) {
     return <>{children}</>;
