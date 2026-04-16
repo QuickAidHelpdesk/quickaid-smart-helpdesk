@@ -63,9 +63,14 @@ export const siteConfig = {
           icon: <LayoutDashboardIcon />,
         },
         {
-          title: "Tickets",
+          title: "My Tickets",
           url: "/tickets",
           icon: <TicketIcon />,
+        },
+        {
+          title: "Create Ticket",
+          url: "/tickets/new",
+          icon: <CirclePlusIcon />,
         },
       ],
     },
