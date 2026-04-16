@@ -26,6 +26,10 @@ import {
 } from "lucide-react";
 
 export const siteConfig = {
+  // Paths
+  publicPaths: ["/", "/404", "/login", "/logout", "/register"],
+  wrapperDisabledPaths: ["/", "/404", "/login", "/logout", "/register"],
+
   // Branding
   company: {
     name: "QuickAid",
@@ -59,19 +63,19 @@ export const siteConfig = {
           icon: <LayoutDashboardIcon />,
         },
         {
-          title: "My Tickets",
-          url: "/tickets/mine",
-          icon: <InboxIcon />,
-        },
-        {
-          title: "All Tickets",
+          title: "Tickets",
           url: "/tickets",
           icon: <TicketIcon />,
         },
+      ],
+    },
+    {
+      title: "Agent / Staff",
+      items: [
         {
-          title: "Resolved",
-          url: "/tickets/resolved",
-          icon: <CheckCircleIcon />,
+          title: "Assigned Tickets",
+          url: "/assigned-tickets",
+          icon: <InboxIcon />,
         },
       ],
     },
