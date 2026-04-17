@@ -57,18 +57,17 @@ export default function TicketsPage() {
     if (!user) return;
     try {
       setLoading(true);
-      let endpoint = "/tickets";
+      let endpoint = searchQuery.trim() !== "" ? "/tickets/search" : "/tickets";
+      const queryParams = new URLSearchParams();
 
-      if (searchQuery.trim() !== "") {
-        endpoint = `/tickets/search?q=${encodeURIComponent(searchQuery)}`;
-      } else {
-        const queryParams = new URLSearchParams();
-        if (statusFilter !== "all") queryParams.append("status", statusFilter);
-        if (categoryFilter !== "all")
-          queryParams.append("category", categoryFilter);
-        if (queryParams.toString()) {
-          endpoint += `?${queryParams.toString()}`;
-        }
+      if (searchQuery.trim() !== "")
+        queryParams.append("q", searchQuery.trim());
+      if (statusFilter !== "all") queryParams.append("status", statusFilter);
+      if (categoryFilter !== "all")
+        queryParams.append("category", categoryFilter);
+
+      if (queryParams.toString()) {
+        endpoint += `?${queryParams.toString()}`;
       }
 
       const res = await apiGet<{ tickets: Ticket[] }>(endpoint);
@@ -81,12 +80,11 @@ export default function TicketsPage() {
   }, [searchQuery, statusFilter, categoryFilter, user]);
 
   useEffect(() => {
-    // Add a slight debounce for search
-    const timer = setTimeout(() => {
+    if (user) {
       fetchTickets();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [fetchTickets]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -149,16 +147,13 @@ export default function TicketsPage() {
                 className="pl-8"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && fetchTickets()}
               />
             </div>
 
-            <div className="flex flex-row gap-4">
-              <Select
-                value={statusFilter}
-                onValueChange={setStatusFilter}
-                disabled={!!searchQuery}
-              >
-                <SelectTrigger className="w-50">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-50">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent position="popper">
@@ -173,12 +168,8 @@ export default function TicketsPage() {
                 </SelectContent>
               </Select>
 
-              <Select
-                value={categoryFilter}
-                onValueChange={setCategoryFilter}
-                disabled={!!searchQuery}
-              >
-                <SelectTrigger className="w-50">
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full sm:w-50">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent position="popper">
@@ -192,10 +183,17 @@ export default function TicketsPage() {
                   </SelectGroup>
                 </SelectContent>
               </Select>
+
+              <Button
+                onClick={() => fetchTickets()}
+                className="w-full sm:w-auto"
+              >
+                Search
+              </Button>
             </div>
           </div>
 
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader className="bg-muted">
                 <TableRow>
