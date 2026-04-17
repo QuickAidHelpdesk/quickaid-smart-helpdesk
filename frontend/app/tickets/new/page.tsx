@@ -102,14 +102,7 @@ export default function CreateTicketPage() {
     <div className="flex flex-col h-full w-full items-center justify-center p-4 gap-6">
       <AnimatePresence mode="wait">
         {!submittedTicket ? (
-          <motion.div
-            key="form"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.3 }}
-            className="w-full max-w-2xl flex flex-col gap-6"
-          >
+          <div key="form" className="w-full max-w-2xl flex flex-col gap-6">
             <div className="w-full text-center">
               <h1 className="text-3xl font-bold tracking-tight">
                 Create Ticket
@@ -282,7 +275,7 @@ export default function CreateTicketPage() {
                 </Button>
               </CardFooter>
             </Card>
-          </motion.div>
+          </div>
         ) : (
           <motion.div
             key="success"
