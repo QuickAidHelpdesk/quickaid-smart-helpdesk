@@ -1,12 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, UserPlus } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -27,54 +27,57 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { useAuth } from "@/context/auth-context";
+import { apiPost } from "@/lib/api";
 
 const formSchema = z.object({
   displayName: z
     .string()
     .min(2, "Display name must be at least 2 characters.")
     .max(100, "Display name must not exceed 100 characters."),
-  role: z.enum(["student", "staff"], {
-    message: "Please select a valid role.",
-  }),
 });
 
-export default function RegisterPage() {
-  const router = useRouter();
-  const {
-    pendingUser,
-    completeRegistration,
-    isLoading: authLoading,
-  } = useAuth();
+export default function AccountPage() {
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      displayName: pendingUser?.display_name || "",
-      // we type-cast empty string to trigger validation if left empty
-      role: "" as any,
+      displayName: "",
     },
   });
 
   React.useEffect(() => {
-    if (pendingUser?.display_name) {
-      form.setValue("displayName", pendingUser.display_name);
+    if (user?.display_name) {
+      form.reset({
+        displayName: user.display_name,
+      });
     }
-  }, [pendingUser, form]);
-
-  if (!authLoading && !pendingUser) {
-    router.replace("/login");
-    return null;
-  }
+  }, [user, form]);
 
   async function onSubmit(data: z.infer<typeof formSchema>) {
+    if (!user) return;
+
     setIsSubmitting(true);
     try {
-      await completeRegistration(data.displayName.trim(), data.role);
-      toast.success("Profile completed successfully!");
-      router.push("/dashboard");
+      const res = await apiPost<{ success: boolean; user: any }>(
+        "/users/login",
+        {
+          user_id: user.user_id,
+          email: user.email,
+          role: user.role,
+          display_name: data.displayName,
+        },
+      );
+
+      if (res.user) {
+        localStorage.setItem("quickaid_user", JSON.stringify(res.user));
+        toast.success("Profile updated successfully!");
+        window.location.reload();
+      }
     } catch (err: any) {
-      toast.error(err.message || "Registration failed. Please try again.");
+      toast.error(err.message || "Failed to update profile.");
     } finally {
       setIsSubmitting(false);
     }
@@ -85,16 +88,17 @@ export default function RegisterPage() {
       <div className="w-full max-w-2xl flex flex-col gap-6">
         <div className="w-full text-center">
           <h1 className="text-3xl font-bold tracking-tight">
-            Complete Your Profile
+            Account Settings
           </h1>
           <p className="text-muted-foreground mt-2">
-            Welcome to QuickAid! Please fill in your details to get started.
+            Manage your profile information and account preferences.
           </p>
         </div>
+
         <Card className="w-full shadow-sm border-muted relative overflow-hidden">
           <CardContent>
             <form
-              id="register-form"
+              id="account-form"
               onSubmit={form.handleSubmit(onSubmit)}
               className="space-y-6 pb-3"
             >
@@ -104,44 +108,34 @@ export default function RegisterPage() {
                   <Input
                     id="email"
                     type="email"
-                    value={pendingUser?.email || ""}
+                    value={user?.email || ""}
                     disabled
                     className="bg-muted"
                   />
-                  {/* <FieldDescription>
-                    Your email matches your SSO provider.
-                  </FieldDescription> */}
+                  <FieldDescription>
+                    Your email address is managed by your provider and cannot be
+                    changed here.
+                  </FieldDescription>
                 </Field>
 
-                <Controller
-                  name="role"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="role">Role</FieldLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <SelectTrigger
-                          id="role"
-                          aria-invalid={fieldState.invalid}
-                        >
-                          <SelectValue placeholder="Select your role" />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            <SelectItem value="student">Student</SelectItem>
-                            <SelectItem value="staff">Staff</SelectItem>
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
+                <Field>
+                  <FieldLabel htmlFor="role">Role</FieldLabel>
+                  <Select value={user?.role || ""} disabled>
+                    <SelectTrigger id="role" className="bg-muted capitalize">
+                      <SelectValue placeholder="Select your role" />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectGroup>
+                        <SelectItem value="student">Student</SelectItem>
+                        <SelectItem value="staff">Staff</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    Your role is assigned by your administrator and cannot be
+                    changed here.
+                  </FieldDescription>
+                </Field>
 
                 <Controller
                   name="displayName"
@@ -167,10 +161,18 @@ export default function RegisterPage() {
               </FieldGroup>
             </form>
           </CardContent>
-          <CardFooter className="flex justify-end border-t bg-muted/20 px-6 py-4">
+          <CardFooter className="flex justify-between border-t bg-muted/20 px-6 py-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => form.reset()}
+              disabled={isSubmitting}
+            >
+              Reset
+            </Button>
             <Button
               type="submit"
-              form="register-form"
+              form="account-form"
               disabled={isSubmitting}
               className="min-w-32 relative overflow-hidden group"
             >
@@ -178,9 +180,9 @@ export default function RegisterPage() {
                 {isSubmitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <UserPlus className="w-4 h-4" />
+                  <Save className="w-4 h-4" />
                 )}
-                {isSubmitting ? "Setting up..." : "Get Started"}
+                {isSubmitting ? "Saving..." : "Save Changes"}
               </span>
             </Button>
           </CardFooter>
