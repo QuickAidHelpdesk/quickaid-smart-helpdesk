@@ -25,10 +25,14 @@ def _get_sender() -> str:
 
 def _send_email(to_email: str, subject: str, html_body: str) -> None:
     """Send an email and poll until the operation completes."""
+    sender = _get_sender()
+    logger.warning("EMAIL_DEBUG: _send_email called — to=%s, sender=%s, subject=%s", to_email, sender, subject)
+
     client = _get_email_client()
+    logger.warning("EMAIL_DEBUG: EmailClient created successfully")
 
     message = {
-        "senderAddress": _get_sender(),
+        "senderAddress": sender,
         "recipients": {
             "to": [{"address": to_email}],
         },
@@ -39,8 +43,9 @@ def _send_email(to_email: str, subject: str, html_body: str) -> None:
     }
 
     poller = client.begin_send(message)
+    logger.warning("EMAIL_DEBUG: begin_send called, waiting for result...")
     result = poller.result()
-    logger.info("Email sent to %s — operation id: %s, status: %s",
+    logger.warning("EMAIL_DEBUG: Email sent to %s — operation id: %s, status: %s",
                 to_email, result["id"], result["status"])
 
 

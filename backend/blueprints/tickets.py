@@ -61,6 +61,7 @@ def submit_ticket(req: func.HttpRequest) -> func.HttpResponse:
 
     # Send confirmation email (FR-03-01, FR-03-03)
     try:
+        logger.warning("EMAIL_DEBUG: About to send confirmation email to %s for ticket %s", ticket["email"], ticket["ticket_id"])
         send_confirmation_email(
             to_email=ticket["email"],
             ticket_id=ticket["ticket_id"],
@@ -69,9 +70,11 @@ def submit_ticket(req: func.HttpRequest) -> func.HttpResponse:
             priority=ticket["priority"],
             description=ticket["description"],
         )
+        logger.warning("EMAIL_DEBUG: Confirmation email sent successfully for ticket %s", ticket["ticket_id"])
     except Exception as e:
         # Email failure should not block the success response
-        logger.error("Confirmation email failed: %s", e)
+        logger.error("EMAIL_DEBUG: Confirmation email FAILED for ticket %s: %s", ticket["ticket_id"], e)
+        logger.exception("EMAIL_DEBUG: Full traceback:")
 
     # Return success (FR-02-05)
     return json_response(
