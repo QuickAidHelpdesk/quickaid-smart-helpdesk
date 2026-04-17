@@ -75,7 +75,7 @@ export const siteConfig = {
       ],
     },
     {
-      title: "Agent / Staff",
+      title: "Staff",
       items: [
         {
           title: "Assigned Tickets",
@@ -88,14 +88,14 @@ export const siteConfig = {
       title: "Management",
       items: [
         {
-          title: "Customers",
-          url: "/customers",
-          icon: <BuildingIcon />,
+          title: "User Management",
+          url: "/users",
+          icon: <UsersIcon />,
         },
         {
-          title: "Agents & Teams",
-          url: "/team",
-          icon: <UsersIcon />,
+          title: "Staff Management",
+          url: "/staff",
+          icon: <BuildingIcon />,
         },
         {
           title: "Reports & Analytics",

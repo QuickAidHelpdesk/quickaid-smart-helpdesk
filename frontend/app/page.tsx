@@ -53,14 +53,14 @@ export default function Home() {
               <Button
                 size="lg"
                 variant="outline"
-                className="px-8 font-medium cursor-pointer"
+                className="px-8 font-medium"
               >
                 Learn More <ArrowDown className="ml-2 h-4 w-4" />
               </Button>
             </Link>
             <Button
               size="lg"
-              className="px-8 font-medium cursor-pointer"
+              className="px-8 font-medium"
               onClick={handleLoginRoute}
             >
               Get Started <ArrowRight className="ml-2 h-4 w-4" />
