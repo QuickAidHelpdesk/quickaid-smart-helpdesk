@@ -22,4 +22,5 @@ export const msalInitPromise = msalInstance.initialize();
 
 export const loginRequest = {
   scopes: ["User.Read"],
+  prompt: "select_account",
 };
