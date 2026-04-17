@@ -252,6 +252,27 @@ def update_ticket_status(ticket: dict, new_status: str, changed_by: str) -> dict
     return ticket
 
 
+# Apply partial updates to a ticket's editable fields.
+def update_ticket(ticket: dict, updates: dict) -> tuple[dict, dict]:
+    container = get_container(TICKETS_CONTAINER)
+
+    editable = ["subject", "description", "category", "priority"]
+    changes = {}
+
+    for field in editable:
+        if field in updates:
+            new_value = str(updates[field]).strip() if isinstance(updates[field], str) else updates[field]
+            if ticket.get(field) != new_value:
+                changes[field] = {"from": ticket.get(field), "to": new_value}
+                ticket[field] = new_value
+
+    if changes:
+        ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
+        container.upsert_item(body=ticket)
+
+    return ticket, changes
+
+
 # FR-10-02, FR-10-03: Assign ticket to a staff member.
 def assign_ticket(ticket: dict, staff_user: dict) -> dict:
     container = get_container(TICKETS_CONTAINER)

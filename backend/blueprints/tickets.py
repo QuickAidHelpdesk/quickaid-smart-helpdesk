@@ -1,23 +1,28 @@
 """
 Tickets Blueprint — public endpoints for ticket submission and tracking (UC-2, UC-4, UC-6)
 API:
-  POST /api/submit_ticket        - Submit a new helpdesk ticket
-  GET  /api/tickets              - Display a list of tickets with filters
-  GET  /api/tickets/{ticketId}   - Display a full ticket details
-  GET  /api/tickets/search?q=    - Search ticket by subject or ticket ID
+  POST  /api/submit_ticket        - Submit a new helpdesk ticket
+  GET   /api/tickets              - Display a list of tickets with filters
+  GET   /api/tickets/{ticketId}   - Display a full ticket details
+  GET   /api/tickets/search?q=    - Search ticket by subject or ticket ID
+  PATCH /api/tickets/{ticketId}   - Edit a ticket submitted by the current user
 """
 
 import logging
 import azure.functions as func
 
-from shared.ticket.email_service import send_confirmation_email
+from shared.ticket.email_service import (
+    send_confirmation_email,
+    send_edit_confirmation_email,
+)
 from shared.ticket.ticket_service import (
     create_ticket,
     get_tickets_by_user_id,
     search_tickets,
     get_ticket_by_id,
+    update_ticket,
 )
-from shared.ticket.validator import validate_ticket
+from shared.ticket.validator import validate_ticket, validate_ticket_update
 from utils.auth import require_role
 from utils.http_helpers import (
     error_response,
@@ -192,3 +197,73 @@ def get_ticket_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logger.error("Failed to retrieve ticket %s: %s", ticket_id, e)
         return error_response("Failed to retrieve ticket. Please try again later.", 500)
+
+
+# ── PATCH/api/tickets/{ticketId} ────────────────────────────────────
+# Edit a ticket submitted by the current user (subject, description, category, priority)
+@bp.route(route="tickets/{ticketId}", methods=["PATCH", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def edit_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+
+    # Handle CORS preflight
+    if req.method == "OPTIONS":
+        return preflight_response()
+
+    user, err = require_role(req, ["student", "staff", "admin"])
+    if err:
+        return err
+
+    ticket_id = req.route_params.get("ticketId")
+
+    try:
+        data = req.get_json()
+    except ValueError:
+        return error_response("Invalid JSON format.")
+
+    errors = validate_ticket_update(data)
+    if errors:
+        return json_response({"error": "Validation failed", "details": errors}, 400)
+
+    try:
+        ticket = get_ticket_by_id(ticket_id)
+    except Exception as e:
+        logger.error("Failed to retrieve ticket %s: %s", ticket_id, e)
+        return error_response("Failed to retrieve ticket. Please try again later.", 500)
+
+    if not ticket:
+        return error_response("Ticket not found.", 404)
+
+    # Only the submitter can edit their own ticket
+    if ticket["email"].lower() != user["email"].lower():
+        return error_response("You can only edit your own tickets.", 403)
+
+    # Block edits once a staff member is working on it
+    if ticket["status"] not in ("Open",):
+        return error_response(
+            f"Ticket cannot be edited while status is '{ticket['status']}'.", 409
+        )
+
+    try:
+        ticket, changes = update_ticket(ticket, data)
+    except Exception as e:
+        logger.error("Failed to update ticket %s: %s", ticket_id, e)
+        return error_response("Failed to update ticket.", 500)
+
+    if not changes:
+        return json_response({"success": True, "message": "No changes applied.", "ticket": ticket})
+
+    try:
+        send_edit_confirmation_email(
+            to_email=ticket["email"],
+            ticket_id=ticket["ticket_id"],
+            subject=ticket["subject"],
+            changes=changes,
+        )
+    except Exception as e:
+        logger.error("Edit confirmation email failed for ticket %s: %s", ticket["ticket_id"], e)
+
+    return json_response({
+        "success": True,
+        "message": f"Ticket {ticket['ticket_id']} updated. A confirmation email has been sent.",
+        "ticket": ticket,
+        "changes": changes,
+    })

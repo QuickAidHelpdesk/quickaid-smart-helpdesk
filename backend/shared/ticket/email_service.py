@@ -139,6 +139,58 @@ def send_status_update_email(
                 to_email, ticket_id, new_status)
 
 
+# ── Ticket edit confirmation to submitter ──────────────────────────
+def send_edit_confirmation_email(
+    to_email: str, ticket_id: str, subject: str, changes: dict
+) -> None:
+    """Send confirmation email when a submitter edits their ticket.
+    `changes` is a dict of {field: {"from": old, "to": new}}."""
+
+    rows = "".join(
+        f"""
+        <tr>
+            <td style="padding: 8px 12px; font-weight: bold; background: #e5e7eb; text-transform: capitalize;">{field}</td>
+            <td style="padding: 8px 12px; background: #ffffff;">
+                <div style="color: #991b1b; text-decoration: line-through;">{change['from']}</div>
+                <div style="color: #065f46;">{change['to']}</div>
+            </td>
+        </tr>
+        """
+        for field, change in changes.items()
+    )
+
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #1e40af; color: white; padding: 20px; text-align: center;">
+            <h1 style="margin: 0; font-size: 22px;">QuickAid — Ticket Updated</h1>
+        </div>
+        <div style="padding: 24px; background: #f9fafb; border: 1px solid #e5e7eb;">
+            <p>Your ticket has been updated successfully.</p>
+            <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                <tr>
+                    <td style="padding: 8px 12px; font-weight: bold; background: #e5e7eb;">Ticket ID</td>
+                    <td style="padding: 8px 12px; background: #ffffff;">{ticket_id}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 12px; font-weight: bold; background: #e5e7eb;">Subject</td>
+                    <td style="padding: 8px 12px; background: #ffffff;">{subject}</td>
+                </tr>
+                {rows}
+            </table>
+            <p style="color: #6b7280; font-size: 14px;">
+                If you did not make this change, please contact the helpdesk immediately.
+            </p>
+        </div>
+        <div style="padding: 12px; text-align: center; color: #9ca3af; font-size: 12px;">
+            QuickAid Smart Campus Helpdesk
+        </div>
+    </div>
+    """
+
+    _send_email(to_email, f"[{ticket_id}] Ticket Updated — {subject}", html)
+    logger.info("Edit confirmation email sent to %s for ticket %s", to_email, ticket_id)
+
+
 # ── FR-09-01: Assignment notification to staff ─────────────────────
 def send_assignment_email(
     to_email: str, ticket_id: str, subject: str

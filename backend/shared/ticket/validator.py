@@ -99,6 +99,46 @@ def validate_status_update(data: dict, current_status: str = None) -> list:
     return errors
 
 
+# Validate partial ticket edit (subject, description, category, priority)
+EDITABLE_FIELDS = ["subject", "description", "category", "priority"]
+
+def validate_ticket_update(data: dict) -> list:
+    errors = []
+
+    provided = {k: data[k] for k in EDITABLE_FIELDS if k in data}
+    if not provided:
+        errors.append(
+            f"At least one editable field required: {', '.join(EDITABLE_FIELDS)}"
+        )
+        return errors
+
+    if "subject" in provided:
+        subject = str(provided["subject"]).strip()
+        if len(subject) < 5:
+            errors.append("Subject must be at least 5 characters")
+        if len(subject) > 100:
+            errors.append("Subject must not exceed 100 characters")
+
+    if "description" in provided:
+        description = str(provided["description"]).strip()
+        if len(description) < 10:
+            errors.append("Description must be at least 10 characters")
+        if len(description) > 1000:
+            errors.append("Description must not exceed 1000 characters")
+
+    if "category" in provided and provided["category"] not in VALID_CATEGORIES:
+        errors.append(
+            f"Invalid category. Choose from: {', '.join(VALID_CATEGORIES)}"
+        )
+
+    if "priority" in provided and provided["priority"] not in VALID_PRIORITIES:
+        errors.append(
+            f"Invalid priority. Choose from: {', '.join(VALID_PRIORITIES)}"
+        )
+
+    return errors
+
+
 # FR-10-02: Validate ticket assignment request
 def validate_assignment(data: dict) -> list:
     import re
