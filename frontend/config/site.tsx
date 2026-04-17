@@ -88,12 +88,12 @@ export const siteConfig = {
       title: "Management",
       items: [
         {
-          title: "User Management",
+          title: "Users",
           url: "/users",
           icon: <UsersIcon />,
         },
         {
-          title: "Staff Management",
+          title: "Agents & Teams",
           url: "/staff",
           icon: <BuildingIcon />,
         },
