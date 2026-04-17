@@ -7,6 +7,8 @@ import { AppWrapper } from "@/components/app-wrapper";
 import { AuthProvider } from "@/context/auth-context";
 import { ThemeProvider } from "@/components/theme-provider";
 
+import { Toaster } from "@/components/ui/sonner"
+
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
@@ -48,6 +50,7 @@ export default async function RootLayout({
             </AppWrapper>
           </AuthProvider>
         </ThemeProvider>
+        <Toaster position="bottom-right" />
       </body>
     </html>
   );
