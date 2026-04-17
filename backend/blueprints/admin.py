@@ -4,6 +4,7 @@ API:
   GET   /api/manage/tickets                    - View all tickets with filters
   PATCH /api/manage/tickets/{ticketId}/assign  - Assign ticket to staff
   GET   /api/manage/staff                      - List all staff members
+  GET   /api/manage/users                      - List all users (for user management)
 
 Note: Uses 'manage' prefix instead of 'admin' because Azure Functions
 reserves the 'admin' route segment for its built-in admin API.
@@ -161,3 +162,29 @@ def get_staff_list(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logger.error("Failed to retrieve staff list: %s", e)
         return error_response("Failed to retrieve staff list.", 500)
+
+from shared.user.user_service import get_all_users
+
+# ── GET /api/manage/users ─────────────────────────────────────────
+# List all users (admin only, for user management UI)
+@bp.route(route="manage/users", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def get_all_users_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return preflight_response()
+
+    # Role check: admin only
+    user, err = require_role(req, ["admin"])
+    if err:
+        return err
+
+    filters = {
+        "role": req.params.get("role"),
+        "q": req.params.get("q")
+    }
+
+    try:
+        users = get_all_users(filters)
+        return json_response({"users": users})
+    except Exception as e:
+        logger.error("Failed to retrieve all users: %s", e)
+        return error_response("Failed to retrieve users.", 500)
