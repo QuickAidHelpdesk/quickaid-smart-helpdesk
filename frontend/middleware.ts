@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const PUBLIC_PATHS = ["/", "/login", "/logout", "/register"];
+import { siteConfig } from "./config/site";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public paths
-  if (PUBLIC_PATHS.includes(pathname)) {
+  if (siteConfig.publicPaths.includes(pathname)) {
     return NextResponse.next();
   }
 
