@@ -110,3 +110,46 @@ def get_users_by_role(role: str) -> list:
         parameters=params,
         enable_cross_partition_query=True,
     ))
+
+# Get all users, with optional search and role filters
+def get_all_users(filters: dict = None) -> list:
+    container = get_container(USERS_CONTAINER)
+    
+    query = "SELECT c.id, c.user_id, c.display_name, c.email, c.role, c.created_at, c.updated_at FROM c WHERE 1=1"
+    params = []
+    
+    if filters:
+        if filters.get("role") and filters.get("role") != "all":
+            query += " AND c.role = @role"
+            params.append({"name": "@role", "value": filters["role"]})
+            
+        q = filters.get("q")
+        if q:
+            query += " AND (CONTAINS(LOWER(c.display_name), @q) OR CONTAINS(LOWER(c.email), @q))"
+            params.append({"name": "@q", "value": q.lower()})
+            
+    query += " ORDER BY c.display_name ASC"
+    
+    try:
+        return list(container.query_items(
+            query=query,
+            parameters=params,
+            enable_cross_partition_query=True,
+        ))
+    except Exception as e:
+        print(f"Error querying users: {e}")
+        return []
+
+# Update an existing user
+def update_user(user_id: str, updates: dict) -> dict | None:
+    container = get_container(USERS_CONTAINER)
+    user = get_user_by_id(user_id)
+    if not user:
+        return None
+    if 'role' in updates:
+        user['role'] = updates['role']
+    if 'display_name' in updates:
+        user['display_name'] = updates['display_name'].strip()
+    user['updated_at'] = datetime.now(timezone.utc).isoformat()
+    container.upsert_item(body=user)
+    return user

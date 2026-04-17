@@ -128,6 +128,7 @@ export default function AccountPage() {
                       <SelectGroup>
                         <SelectItem value="student">Student</SelectItem>
                         <SelectItem value="staff">Staff</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>

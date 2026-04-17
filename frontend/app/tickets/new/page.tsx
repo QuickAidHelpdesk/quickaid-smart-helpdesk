@@ -61,8 +61,6 @@ export default function CreateTicketPage() {
     defaultValues: {
       subject: "",
       description: "",
-      category: "IT Support",
-      priority: "Low",
     },
   });
 
@@ -132,6 +130,7 @@ export default function CreateTicketPage() {
                             <FieldLabel htmlFor="category">Category</FieldLabel>
                             <Select
                               onValueChange={field.onChange}
+                              value={field.value}
                               defaultValue={field.value}
                             >
                               <SelectTrigger
@@ -169,6 +168,7 @@ export default function CreateTicketPage() {
                             <FieldLabel htmlFor="priority">Priority</FieldLabel>
                             <Select
                               onValueChange={field.onChange}
+                              value={field.value}
                               defaultValue={field.value}
                             >
                               <SelectTrigger
@@ -249,12 +249,13 @@ export default function CreateTicketPage() {
                   </FieldGroup>
                 </form>
               </CardContent>
-              <CardFooter className="flex justify-between border-t bg-muted/20 px-6 py-4">
+              <CardFooter className="flex flex-col sm:flex-row justify-between gap-4 border-t bg-muted/20 px-6 py-4">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => form.reset()}
                   disabled={isSubmitting}
+                  className="w-full sm:w-auto"
                 >
                   Reset
                 </Button>
@@ -262,7 +263,7 @@ export default function CreateTicketPage() {
                   type="submit"
                   form="ticket-form"
                   disabled={isSubmitting}
-                  className="min-w-32 relative overflow-hidden group"
+                  className="w-full sm:w-auto min-w-32 relative overflow-hidden group"
                 >
                   <span className="relative z-10 flex items-center justify-center gap-2">
                     {isSubmitting ? (
@@ -340,7 +341,7 @@ export default function CreateTicketPage() {
                   <div className="absolute -right-2 top-1/2 w-4 h-4 rounded-full border border-l-0 bg-background shadow-inner -translate-y-1/2" />
                 </div>
 
-                <div className="flex gap-4 w-full">
+                <div className="flex flex-col sm:flex-row gap-4 w-full">
                   <Button
                     variant="outline"
                     className="flex-1"
