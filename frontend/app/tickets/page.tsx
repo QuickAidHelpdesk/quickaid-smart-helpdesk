@@ -32,6 +32,7 @@ import {
 import { apiGet } from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
 import Link from "next/link";
+import { VALID_CATEGORIES, VALID_STATUSES } from "@/config/enums";
 
 interface Ticket {
   ticket_id: string;
@@ -163,10 +164,11 @@ export default function TicketsPage() {
                 <SelectContent position="popper">
                   <SelectGroup>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="Open">Open</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="Resolved">Resolved</SelectItem>
-                    <SelectItem value="Closed">Closed</SelectItem>
+                    {VALID_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -182,16 +184,11 @@ export default function TicketsPage() {
                 <SelectContent position="popper">
                   <SelectGroup>
                     <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="IT Support">IT Support</SelectItem>
-                    <SelectItem value="Facilities">Facilities</SelectItem>
-                    <SelectItem value="Academic Services">
-                      Academic Services
-                    </SelectItem>
-                    <SelectItem value="Library">Library</SelectItem>
-                    <SelectItem value="Finance">Finance</SelectItem>
-                    <SelectItem value="General Inquiry">
-                      General Inquiry
-                    </SelectItem>
+                    {VALID_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>

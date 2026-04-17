@@ -29,17 +29,7 @@ import {
 } from "@/components/ui/select";
 import { apiPost } from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
-
-const VALID_CATEGORIES = [
-  "IT Support",
-  "Facilities",
-  "Academic Services",
-  "Library",
-  "Finance",
-  "General Inquiry",
-] as const;
-
-const VALID_PRIORITIES = ["Low", "Medium", "High", "Critical"] as const;
+import { VALID_CATEGORIES, VALID_PRIORITIES } from "@/config/enums";
 
 const formSchema = z.object({
   subject: z
