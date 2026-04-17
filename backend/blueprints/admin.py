@@ -5,6 +5,7 @@ API:
   PATCH /api/manage/tickets/{ticketId}/assign  - Assign ticket to staff
   GET   /api/manage/staff                      - List all staff members
   GET   /api/manage/users                      - List all users (for user management)
+  PATCH /api/manage/users/{userId}             - Update user role and name
 
 Note: Uses 'manage' prefix instead of 'admin' because Azure Functions
 reserves the 'admin' route segment for its built-in admin API.
@@ -188,3 +189,31 @@ def get_all_users_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logger.error("Failed to retrieve all users: %s", e)
         return error_response("Failed to retrieve users.", 500)
+
+
+# ── PATCH /api/manage/users/{userId} ───────────────────
+# Update a user's role or display name (admin only)
+@bp.route(route="manage/users/{userId}", methods=["PATCH", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def update_user_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return preflight_response()
+    
+    user, err = require_role(req, ["admin"])
+    if err:
+        return err
+        
+    user_id = req.route_params.get("userId")
+    
+    try:
+        updates = req.get_json()
+    except ValueError:
+        return error_response("Invalid JSON format.", 400)
+        
+    from shared.user.user_service import update_user
+    try:
+        updated_user = update_user(user_id, updates)
+        if not updated_user:
+            return error_response("User not found.", 404)
+        return json_response({"success": True, "user": updated_user})
+    except Exception as e:
+        return error_response(str(e), 500)

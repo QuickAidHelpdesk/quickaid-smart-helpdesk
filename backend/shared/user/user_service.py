@@ -139,3 +139,17 @@ def get_all_users(filters: dict = None) -> list:
     except Exception as e:
         print(f"Error querying users: {e}")
         return []
+
+# Update an existing user
+def update_user(user_id: str, updates: dict) -> dict | None:
+    container = get_container(USERS_CONTAINER)
+    user = get_user_by_id(user_id)
+    if not user:
+        return None
+    if 'role' in updates:
+        user['role'] = updates['role']
+    if 'display_name' in updates:
+        user['display_name'] = updates['display_name'].strip()
+    user['updated_at'] = datetime.now(timezone.utc).isoformat()
+    container.upsert_item(body=user)
+    return user
