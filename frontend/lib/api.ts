@@ -24,16 +24,22 @@ function getAuthHeaders(): Record<string, string> {
   return headers;
 }
 
+async function parseError(res: Response): Promise<Error> {
+  const body = await res.json().catch(() => null);
+  const message =
+    body?.error || body?.message || `API error: ${res.status}`;
+  const err = new Error(message) as Error & { status?: number };
+  err.status = res.status;
+  return err;
+}
+
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
   });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: "Request failed" }));
-    throw new Error(error.message || `API error: ${res.status}`);
-  }
+  if (!res.ok) throw await parseError(res);
   return res.json();
 }
 
@@ -41,10 +47,7 @@ export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: "Request failed" }));
-    throw new Error(error.message || `API error: ${res.status}`);
-  }
+  if (!res.ok) throw await parseError(res);
   return res.json();
 }
 
@@ -54,9 +57,6 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
   });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: "Request failed" }));
-    throw new Error(error.message || `API error: ${res.status}`);
-  }
+  if (!res.ok) throw await parseError(res);
   return res.json();
 }

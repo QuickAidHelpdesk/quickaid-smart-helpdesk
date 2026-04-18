@@ -34,13 +34,12 @@ export default function TicketsPage() {
 
       const res = await apiGet<{ tickets: Ticket[] }>(endpoint);
       setTickets(res.tickets || []);
-    } catch (err: any) {
-      console.error("Failed to fetch tickets:", err);
-      if (
-        err?.message?.includes("404") ||
-        err?.message?.includes("not found")
-      ) {
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      if (status === 404) {
         setTickets([]);
+      } else {
+        console.error("Failed to fetch tickets:", err);
       }
     } finally {
       setLoading(false);

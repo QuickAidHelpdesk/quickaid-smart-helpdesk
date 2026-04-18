@@ -170,41 +170,12 @@ def search_tickets_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         return error_response("Search failed. Please try again later.", 500)
 
 
-# ── GET/api/tickets/{ticketId} ──────────────────────────────────────
-# Display a ticket full details
-@bp.route(route="tickets/{ticketId}", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def get_ticket_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+# ── /api/tickets/{ticketId} ─────────────────────────────────────────
+# GET:   display full ticket details
+# PATCH: edit a ticket submitted by the current user
+@bp.route(route="tickets/{ticketId}", methods=["GET", "PATCH", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def ticket_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
-    # Handle CORS preflight
-    if req.method == "OPTIONS":
-        return preflight_response()
-
-    # Auth check: any logged-in user can view ticket details
-    user, err = require_role(req, ["student", "staff", "admin"])
-    if err:
-        return err
-
-    ticket_id = req.route_params.get("ticketId")
-
-    try:
-        ticket = get_ticket_by_id(ticket_id)
-
-        if not ticket:
-            return error_response("Ticket not found.", 404)
-
-        return json_response(ticket)
-
-    except Exception as e:
-        logger.error("Failed to retrieve ticket %s: %s", ticket_id, e)
-        return error_response("Failed to retrieve ticket. Please try again later.", 500)
-
-
-# ── PATCH/api/tickets/{ticketId} ────────────────────────────────────
-# Edit a ticket submitted by the current user (subject, description, category, priority)
-@bp.route(route="tickets/{ticketId}", methods=["PATCH", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def edit_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
-
-    # Handle CORS preflight
     if req.method == "OPTIONS":
         return preflight_response()
 
@@ -214,6 +185,17 @@ def edit_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     ticket_id = req.route_params.get("ticketId")
 
+    if req.method == "GET":
+        try:
+            ticket = get_ticket_by_id(ticket_id)
+            if not ticket:
+                return error_response("Ticket not found.", 404)
+            return json_response(ticket)
+        except Exception as e:
+            logger.error("Failed to retrieve ticket %s: %s", ticket_id, e)
+            return error_response("Failed to retrieve ticket. Please try again later.", 500)
+
+    # PATCH — edit a ticket
     try:
         data = req.get_json()
     except ValueError:
@@ -232,11 +214,9 @@ def edit_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if not ticket:
         return error_response("Ticket not found.", 404)
 
-    # Only the submitter can edit their own ticket
     if ticket["email"].lower() != user["email"].lower():
         return error_response("You can only edit your own tickets.", 403)
 
-    # Block edits once a staff member is working on it
     if ticket["status"] not in ("Open",):
         return error_response(
             f"Ticket cannot be edited while status is '{ticket['status']}'.", 409
