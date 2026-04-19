@@ -9,7 +9,9 @@
     "COSMOS_CONTAINER_USERS": "users",
     "COSMOS_CONTAINER_STATUS_HISTORY": "status_history",
     "EMAIL_CONNECTION_STRING": "endpoint=https://quickaid-comms.asiapacific.communication.azure.com/;accesskey=CCkDttJnwkmISS6AfWV21npUbvWAwTwqkOpDoPgHp44GT1N4xG1MJQQJ99CDACULyCpxld2HAAAAAZCScr3o",
-    "EMAIL_SENDER_ADDRESS": "DoNotReply@40699e74-5dac-406f-ac3c-974c3d21c690.azurecomm.net"
+    "EMAIL_SENDER_ADDRESS": "DoNotReply@40699e74-5dac-406f-ac3c-974c3d21c690.azurecomm.net",
+    "APPLICATIONINSIGHTS_CONNECTION_STRING": "",
+    "APPLICATIONINSIGHTS_PORTAL_URL": ""
   },
   "Host": {
     "CORS": "*"

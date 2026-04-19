@@ -28,6 +28,7 @@ from utils.http_helpers import (
     json_response,
     preflight_response,
 )
+from utils.telemetry import track_event
 
 bp = func.Blueprint()
 logger = logging.getLogger(__name__)
@@ -122,6 +123,13 @@ def assign_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logger.error("Failed to assign ticket %s: %s", ticket_id, e)
         return error_response("Failed to assign ticket.", 500)
+
+    # FR-11-02: custom event for ticket assignment
+    track_event("TicketAssigned", {
+        "ticket_id": updated_ticket["ticket_id"],
+        "assigned_to": staff_user["email"],
+        "assigned_by": user["email"],
+    })
 
     # FR-09-01: Send assignment notification email (fire-and-forget)
     try:

@@ -20,6 +20,7 @@ import {
   BuildingIcon,
   ShieldCheckIcon,
   GitMergeIcon,
+  ActivityIcon,
   CircleUserRoundIcon,
   CreditCardIcon,
   BellIcon,
@@ -107,6 +108,11 @@ export const siteConfig = {
     {
       title: "Administration",
       items: [
+        {
+          title: "Insights & Monitoring",
+          url: "/admin/insights",
+          icon: <ActivityIcon />,
+        },
         {
           title: "Workflows & SLA",
           url: "/admin/workflows",

@@ -147,7 +147,9 @@ Create `backend/local.settings.json` with the following structure:
     "COSMOS_CONTAINER_USERS": "users",
     "COSMOS_CONTAINER_STATUS_HISTORY": "status_history",
     "EMAIL_CONNECTION_STRING": "<your-azure-communication-services-connection-string>",
-    "EMAIL_SENDER_ADDRESS": "<your-verified-sender-address>"
+    "EMAIL_SENDER_ADDRESS": "<your-verified-sender-address>",
+    "APPLICATIONINSIGHTS_CONNECTION_STRING": "<your-application-insights-connection-string>",
+    "APPLICATIONINSIGHTS_PORTAL_URL": "<optional-deep-link-to-azure-portal>"
   },
   "Host": {
     "CORS": "*"
@@ -164,6 +166,8 @@ Create `backend/local.settings.json` with the following structure:
 | `COSMOS_CONTAINER_STATUS_HISTORY` | Container for status history | Default: `status_history` |
 | `EMAIL_CONNECTION_STRING` | Azure Communication Services connection string | Azure Portal → Communication Services → Keys → Connection String |
 | `EMAIL_SENDER_ADDRESS` | Verified sender email address (e.g., `DoNotReply@xxx.azurecomm.net`) | Azure Portal → Email Communication Services → Provision Domains → MailFrom addresses |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Application Insights connection string (enables telemetry + custom events, FR-11-01/02) | Azure Portal → `quickaid-func` Application Insights → Properties → Connection String |
+| `APPLICATIONINSIGHTS_PORTAL_URL` | Optional. Deep link shown on the admin insights page for raw telemetry | Azure Portal → Application Insights blade → copy URL from the address bar |
 
 > **Note:** `local.settings.json` is gitignored and should never be committed. Each developer must create their own copy.
 

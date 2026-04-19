@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"/c/Users/razin/OneDrive/Documents/WEBSITE LEARNING/QuickSmartAid/backend\" -type f -name \"*.py\" ! -path \"*/.venv/*\" -exec grep -l \"logger\\\\.\" {} \\\\;)",
+      "Bash(find \"/c/Users/razin/OneDrive/Documents/WEBSITE LEARNING/QuickSmartAid/backend\" -type f -name \"*.py\" ! -path \"*/.venv/*\" -exec grep -h \"logger\\\\.\" {} \\\\;)"
+    ]
+  }
+}

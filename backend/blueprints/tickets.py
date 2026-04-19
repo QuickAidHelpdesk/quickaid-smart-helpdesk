@@ -29,6 +29,7 @@ from utils.http_helpers import (
     json_response,
     preflight_response
 )
+from utils.telemetry import track_event
 
 bp = func.Blueprint()
 logger = logging.getLogger(__name__)
@@ -63,6 +64,14 @@ def submit_ticket(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logger.error("Failed to create ticket: %s", e)
         return error_response("Failed to create ticket.", 500)
+
+    # FR-11-02: custom event for ticket submission
+    track_event("TicketSubmitted", {
+        "ticket_id": ticket["ticket_id"],
+        "category": ticket["category"],
+        "priority": ticket["priority"],
+        "user_email": ticket["email"],
+    })
 
     # Send confirmation email (FR-03-01, FR-03-03)
     try:

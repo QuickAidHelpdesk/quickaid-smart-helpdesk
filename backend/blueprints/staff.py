@@ -21,6 +21,7 @@ from utils.http_helpers import (
     json_response,
     preflight_response,
 )
+from utils.telemetry import track_event
 
 bp = func.Blueprint()
 logger = logging.getLogger(__name__)
@@ -103,11 +104,20 @@ def update_ticket_status_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         return json_response({"error": "Validation failed", "details": errors}, 400)
 
     # Update status
+    previous_status = ticket["status"]
     try:
         updated_ticket = update_ticket_status(ticket, data["status"].strip(), user["email"])
     except Exception as e:
         logger.error("Failed to update ticket %s status: %s", ticket_id, e)
         return error_response("Failed to update ticket status.", 500)
+
+    # FR-11-02: custom event for status change
+    track_event("TicketStatusChanged", {
+        "ticket_id": updated_ticket["ticket_id"],
+        "previous_status": previous_status,
+        "new_status": updated_ticket["status"],
+        "changed_by": user["email"],
+    })
 
     # FR-08-03: Send status update email (fire-and-forget)
     try:
