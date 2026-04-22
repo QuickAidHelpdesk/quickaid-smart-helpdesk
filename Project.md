@@ -32,7 +32,7 @@ The primary target audience for the QuickAid system consists of the community wi
 
 **QuickAid — Smart Campus Helpdesk** is a cloud-native web application designed for university students and staff to submit campus-related issues, track the progress of their requests in real time, and receive timely support through automated notifications. The application addresses the common challenge faced by educational institutions where campus helpdesk operations are fragmented across email, phone calls, and walk-in visits, leading to delayed response times, lost requests, and poor visibility into issue resolution.
 
-Built entirely on Microsoft Azure services under the Free Tier, QuickAid leverages a serverless architecture with Azure Functions for backend processing, Azure Cosmos DB for scalable NoSQL data storage, and Azure App Service for frontend hosting. The application integrates SendGrid for automated email communications and Azure Key Vault for secure secret management, ensuring production-grade security practices from the ground up.
+Built entirely on Microsoft Azure services under the Free Tier, QuickAid leverages a serverless architecture with Azure Functions (Python V2 programming model) for backend processing, Azure Cosmos DB for scalable NoSQL data storage, and Azure App Service for frontend hosting. The application integrates Azure Communication Services (Email) for automated notifications and Azure Key Vault for secure secret management, ensuring production-grade security practices from the ground up.
 
 The system is designed to be scalable and maintainable, with the potential to be adopted by other educational institutions. By centralising all helpdesk operations into a single, accessible web platform, QuickAid eliminates the inefficiencies of traditional support channels and provides both users and administrators with a transparent, trackable workflow for issue resolution.
 
@@ -60,11 +60,11 @@ The proposed system provides a structured ticket submission interface allowing S
 
 ### V. Automated Email Notifications
 
-The proposed system integrates SendGrid as the automated email notification service to communicate with users at key points in the ticket lifecycle, including dispatching a confirmation email upon ticket creation and sending status change notifications to keep users informed of their ticket progress.
+The proposed system integrates Azure Communication Services (Email) as the automated email notification service to communicate with users at key points in the ticket lifecycle, including dispatching a confirmation email upon ticket creation, notifying users of edits and status changes, and notifying staff of new ticket assignments.
 
 ### VI. Secure Secret Management
 
-The proposed system implements Azure Key Vault as the centralised secret management solution, storing all sensitive configuration values including API keys, database connection strings, and SendGrid credentials securely at rest.
+The proposed system implements Azure Key Vault as the centralised secret management solution, storing all sensitive configuration values including database connection strings, Azure Communication Services connection strings, and other credentials securely at rest.
 
 ### VII. Application Performance Monitoring
 
@@ -76,14 +76,16 @@ As an optional enhancement, the proposed system integrates Azure Application Ins
 
 ### I. Frontend
 
-- HTML5, CSS3, JavaScript (Vanilla or React)
-- Bootstrap 5 for responsive UI components
-- Azure App Service for static frontend hosting
+- Next.js 16 (App Router) with React 19 and TypeScript 5
+- Tailwind CSS 4 and shadcn/ui (Radix primitives) for component design
+- Recharts for the admin monitoring dashboard
+- Microsoft Entra ID authentication via MSAL (`@azure/msal-browser`, `@azure/msal-react`)
+- Azure App Service for frontend hosting
 
 ### II. Backend
 
-- Azure Functions (Python runtime)
-- HTTP-triggered serverless functions for API endpoints
+- Azure Functions (Python 3.9+) using the V2 programming model with Blueprints
+- HTTP-triggered serverless functions organised by service: `tickets`, `users`, `staff`, `admin`, `insights`
 - Azure Functions Core Tools for local development and testing
 
 ### III. Database
@@ -93,21 +95,25 @@ As an optional enhancement, the proposed system integrates Azure Application Ins
 
 ### IV. Email Service
 
-- SendGrid API for transactional email delivery
-- Email templates for confirmation and status update notifications
+- Azure Communication Services (Email) for transactional email delivery
+- Templated emails for ticket confirmation, edits, status updates, and staff assignment notifications
 
 ### V. Security
 
 - Azure Key Vault for secret management
 - Azure Managed Identity for credential-free authentication
+- Role-based access control via `X-User-Email` header + `require_role()` server-side lookup
 
 ### VI. Monitoring
 
 - Azure Application Insights for telemetry and performance tracking
+- Custom events: `TicketSubmitted`, `TicketAssigned`, `TicketStatusChanged`
+- In-app monitoring dashboard (UC-11) at `/admin/insights` backed by `/api/manage/insights`
 
 ### VII. Deployment
 
 - All components deployable under Azure Free Tier
+- Docker and Docker Compose for local containerised development
 - GitHub for version control and team collaboration
 
 ---
@@ -144,8 +150,8 @@ This section will discuss all the actors involved in the QuickAid system with a 
 | **FR-02-03** | | | The system shall support ticket categorisation including IT Support, Facilities, Academic Services, Library, Finance, and General Inquiry. |
 | **FR-02-04** | | | The system shall assign a unique ticket identifier (e.g., QA-00001) to each submitted ticket and store ticket details with a default status of 'Open' timestamp created. |
 | **FR-02-05** | | | The system shall display a success message to the user upon successful ticket submission, containing the unique ticket ID generated for their reference and a message confirming their email has been notified. |
-| **FR-03-01** | **UC-3** | **Send Email Ticket Submission Confirmation** | The system shall send an automated confirmation email to the submitter upon successful ticket creation via SendGrid integration. |
-| **FR-03-02** | | | The system shall send all confirmation emails using the SendGrid API, retrieving the SendGrid API key exclusively from Azure Key Vault at runtime. |
+| **FR-03-01** | **UC-3** | **Send Email Ticket Submission Confirmation** | The system shall send an automated confirmation email to the submitter upon successful ticket creation via Azure Communication Services integration. |
+| **FR-03-02** | | | The system shall send all confirmation emails using the Azure Communication Services API, retrieving the Azure Communication Services API key exclusively from Azure Key Vault at runtime. |
 | **FR-03-03** | | | The confirmation email shall include the ticket ID, subject, category, priority, and a summary of the submitted issue. |
 
 ## Ticket Tracking Module
@@ -158,7 +164,7 @@ This section will discuss all the actors involved in the QuickAid system with a 
 | **FR-04-04** | | | The system shall display a message stating "No tickets found for this email address" when the query returns no matching records. |
 | **FR-04-05** | | | The system shall display an error message if the Cosmos DB query fails due to a connection or service issue. |
 | **FR-05-01** | **UC-5** | **Notify on Ticket Status Change** | The system shall automatically send a status update email notification to the ticket submitter's university email address every time a Support Staff member successfully updates the status. |
-| **FR-05-02** | | | The system shall send all status update notification emails using the SendGrid API, retrieving the SendGrid API key exclusively from Azure Key Vault at runtime before every sending operation. |
+| **FR-05-02** | | | The system shall send all status update notification emails using the Azure Communication Services API, retrieving the Azure Communication Services API key exclusively from Azure Key Vault at runtime before every sending operation. |
 | **FR-06-01** | **UC-6** | **Search Ticket** | The system shall provide a search input field allowing users to search for a specific ticket name and id. |
 | **FR-06-02** | | | The system shall query Cosmos DB and return all tickets matching the entered in the input field. |
 | **FR-06-03** | | | The system shall display a message stating "No tickets matched your search. Try different keywords." when the search query returns no results. |
@@ -176,7 +182,7 @@ This section will discuss all the actors involved in the QuickAid system with a 
 | **FR-08-02** | | | The system shall display the latest list of assigned tasks after a successful ticket update. |
 | **FR-08-03** | | | The system shall automatically trigger UC to send a status update email to the original ticket submitter every time a Support Agent successfully changes a ticket's status. |
 | **FR-09-01** | **UC-9** | **Receive Ticket Assignment Notification** | The system shall automatically send an assignment notification email to the assigned Support Staff member's university email address every time the Admin assigns a ticket. |
-| **FR-09-02** | | | The system shall send all assignment notification emails using the SendGrid API, retrieving the SendGrid API key exclusively from Azure Key Vault at runtime before every sending operation. |
+| **FR-09-02** | | | The system shall send all assignment notification emails using the Azure Communication Services API, retrieving the Azure Communication Services API key exclusively from Azure Key Vault at runtime before every sending operation. |
 | **FR-09-03** | | | The assignment notification email shall contain the ticket details. |
 | **FR-10-01** | **UC-10** | **Assign Ticket to Support Staff** | The system shall provide access only to authenticated Admin users displaying all submitted tickets across all users. |
 | **FR-10-02** | | | The system shall allow admin users to assign tickets to specific support staff members. |
@@ -238,7 +244,7 @@ QuickAid uses Azure Cosmos DB with the Core SQL API. The database is structured 
 | **ticket_id** | string | FK | References tickets.ticket_id |
 | **recipient_email** | string | — | Email address of the recipient |
 | **email_type** | enum | — | Type: confirmation, status_update, assignment |
-| **sendgrid_message_id** | string | nullable | SendGrid message tracking ID |
+| **message_id** | string | nullable | Azure Communication Services message tracking ID |
 | **status** | enum | — | Delivery status: sent, delivered, failed, bounced |
 | **sent_at** | timestamp | — | Timestamp when the email was sent |
 
@@ -275,7 +281,7 @@ The system follows a serverless, event-driven architecture leveraging Azure clou
 
 **User (Browser)** → Azure App Service (Frontend) → Azure Functions (Backend API) → Azure Cosmos DB (Data Store)
 
-**Azure Functions** → SendGrid (Email Notifications)
+**Azure Functions** → Azure Communication Services (Email Notifications)
 **Azure Functions** → Azure Key Vault (Secret Retrieval via Managed Identity)
 **Azure Functions** → Azure Application Insights (Monitoring & Telemetry)
 
@@ -287,17 +293,38 @@ The frontend is a static web application hosted on Azure App Service that commun
 
 # API Endpoints
 
-The following Azure Functions serve as the backend API endpoints for the QuickAid system:
+The backend is implemented with the Azure Functions V2 programming model using Blueprints, with routes grouped by service in `backend/blueprints/`. Admin endpoints use the `/api/manage/` prefix because Azure Functions reserves the `admin` route segment. All protected endpoints require the `X-User-Email` header and are authorised via `require_role()` in `utils/auth.py`.
 
-| Method | Endpoint | Function Name | Description |
-|--------|----------|--------------|-------------|
-| **POST** | /api/tickets | CreateTicket | Accepts ticket data from the web form, validates input, stores in Cosmos DB, and triggers a SendGrid confirmation email. |
-| **GET** | /api/tickets?email={email} | GetTickets | Retrieves all tickets associated with the provided email address from Cosmos DB. |
-| **GET** | /api/tickets/{ticketId} | GetTicketById | Retrieves full details for a specific ticket by its unique ticket ID. |
-| **PUT** | /api/tickets/{ticketId}/status | UpdateTicketStatus | Updates the status of a ticket and records the change in status_history. Triggers a status update email notification. |
-| **PUT** | /api/tickets/{ticketId}/assign | AssignTicket | Assigns a ticket to a specific support staff member (admin only). |
-| **GET** | /api/admin/tickets | GetAllTickets | Retrieves all tickets in the system with optional filters for status, category, and priority (admin only). |
-| **POST** | /api/tickets/{ticketId}/notes | AddAdminNote | Adds an internal note to a ticket visible only to admin and support staff. |
+### Public — `tickets.py`, `users.py`
+
+| Method | Endpoint | Blueprint Handler | Description |
+|--------|----------|-------------------|-------------|
+| **POST** | /api/submit_ticket | `tickets.submit_ticket` | Validates input, stores the ticket in Cosmos DB, emits a `TicketSubmitted` telemetry event, and sends a confirmation email via Azure Communication Services. |
+| **GET** | /api/tickets | `tickets.get_tickets_endpoint` | Retrieves all tickets belonging to the authenticated user (filters: `status`, `category`). |
+| **GET** | /api/tickets/search?q= | `tickets.search_tickets_endpoint` | Searches tickets by subject or ticket ID. |
+| **GET** | /api/tickets/{ticketId} | `tickets.ticket_by_id_endpoint` | Retrieves full details for a specific ticket. |
+| **PATCH** | /api/tickets/{ticketId} | `tickets.ticket_by_id_endpoint` | Edits a ticket (owner only, status must be Open). Sends an edit confirmation email. |
+| **POST** | /api/users/login | `users.user_login` | Upserts the user record on Entra ID login. |
+| **GET** | /api/users?email= | `users.get_user_endpoint` | Retrieves a user by email. |
+| **GET** | /api/users/{userId} | `users.get_user_by_id_endpoint` | Retrieves a user by ID (any authenticated role). |
+
+### Staff portal — `staff.py` (role: staff/admin)
+
+| Method | Endpoint | Blueprint Handler | Description |
+|--------|----------|-------------------|-------------|
+| **GET** | /api/staff/tickets | `staff.get_staff_tickets` | Lists tickets assigned to the logged-in staff member (filters: `status`, `priority`). |
+| **PATCH** | /api/staff/tickets/{ticketId}/status | `staff.update_ticket_status_endpoint` | Updates a ticket status, emits a `TicketStatusChanged` telemetry event, and notifies the submitter. |
+
+### Admin portal — `admin.py`, `insights.py` (role: admin)
+
+| Method | Endpoint | Blueprint Handler | Description |
+|--------|----------|-------------------|-------------|
+| **GET** | /api/manage/tickets | `admin.get_admin_tickets` | Lists all tickets with optional filters for status, category, priority, and date range. |
+| **PATCH** | /api/manage/tickets/{ticketId}/assign | `admin.assign_ticket_endpoint` | Assigns a ticket to staff, emits a `TicketAssigned` telemetry event, and notifies the assignee. |
+| **GET** | /api/manage/staff | `admin.get_staff_list` | Lists all staff members for assignment UIs. |
+| **GET** | /api/manage/users | `admin.get_all_users_endpoint` | Lists all users (filters: `role`, `q`). |
+| **PATCH** | /api/manage/users/{userId} | `admin.update_user_endpoint` | Updates a user's role or display name. |
+| **GET** | /api/manage/insights?days=30 | `insights.get_insights` | Aggregated ticket metrics powering the UC-11 monitoring dashboard. |
 
 ---
 
@@ -339,7 +366,7 @@ All components are deployed under the Azure Free Tier. The following steps outli
 - Azure CLI installed and configured
 - Python 3.9+ installed locally
 - Azure Functions Core Tools v4
-- SendGrid account with verified sender email
+- Azure Communication Services account with verified sender email
 - Git and GitHub for version control
 
 ### Step 1: Resource Group Setup
@@ -356,11 +383,11 @@ Deploy the Python-based Azure Functions app containing all API endpoints. Config
 
 ### Step 4: Azure Key Vault Setup
 
-Create an Azure Key Vault instance and store all sensitive values including the Cosmos DB connection string, SendGrid API key, and any other configuration secrets. Assign access policies granting the Functions app Managed Identity read access to secrets.
+Create an Azure Key Vault instance and store all sensitive values including the Cosmos DB connection string, Azure Communication Services API key, and any other configuration secrets. Assign access policies granting the Functions app Managed Identity read access to secrets.
 
-### Step 5: SendGrid Integration
+### Step 5: Azure Communication Services Integration
 
-Configure a SendGrid account, verify the sender email address, and generate an API key. Store the API key in Azure Key Vault. Implement email templates for ticket confirmation and status update notifications.
+Configure a Azure Communication Services account, verify the sender email address, and generate an API key. Store the API key in Azure Key Vault. Implement email templates for ticket confirmation and status update notifications.
 
 ### Step 6: App Service Frontend Deployment
 

@@ -19,30 +19,32 @@ This application was developed as a Capstone Project for the MyMahir Microsoft D
 
 ## Features
 
-- **Issue Submission**: A modern web form interface allowing users to quickly submit helpdesk tickets with categories and priority levels.
-- **Ticket Tracking**: Users can retrieve and check the status of their submitted tickets via their email addresses.
-- **Role-Based Access**: Three user roles — Student/Staff, Support Agent, and Admin — each with appropriate permissions.
-- **Ticket Management**: Support staff can update ticket statuses; admins can assign tickets and add internal notes.
-- **Automated Notifications**: Email confirmations on ticket creation, status changes, and ticket assignments via Azure Communication Services.
+- **Issue Submission**: A modern web form letting users submit helpdesk tickets with categories and priority levels.
+- **Ticket Tracking & Editing**: Users can list, search, view, and edit (while still Open) their own tickets.
+- **Role-Based Access**: Three roles — Student, Staff, and Admin — each routed to an appropriate portal.
+- **Staff Portal**: Staff see tickets assigned to them and can update status (Open / In Progress / Resolved / Closed).
+- **Admin Portal**: Admins view all tickets, assign to staff, manage users and roles, and view a monitoring dashboard (UC-11) with Application Insights metrics.
+- **Automated Notifications**: Emails on ticket creation, edits, status changes, and assignments via Azure Communication Services.
 
 ## Architecture and Technology Stack
 
-The project uses a decoupled client-server architecture with a React frontend and Azure Functions serverless backend.
+The project uses a decoupled client-server architecture with a Next.js frontend and Azure Functions serverless backend.
 
 ### Frontend
 
-- **Framework**: Next.js 16 with React 19
+- **Framework**: Next.js 16 (App Router) with React 19 and TypeScript 5
 - **Styling**: Tailwind CSS 4
-- **UI Components**: Radix UI, shadcn/ui
+- **UI Components**: Radix UI, shadcn/ui, Recharts
+- **Auth**: Microsoft Entra ID via MSAL (`@azure/msal-browser`, `@azure/msal-react`)
 - **Hosting**: Azure App Service
 
 ### Backend
 
-- **Runtime**: Azure Functions (Python, V2 model)
+- **Runtime**: Azure Functions (Python 3.9+, V2 programming model with Blueprints)
 - **Database**: Azure Cosmos DB (NoSQL, Core SQL API)
 - **Email**: Azure Communication Services (Email) for transactional emails
 - **Security**: Azure Key Vault for secret management
-- **Monitoring**: Azure Application Insights (optional)
+- **Monitoring**: Azure Application Insights (custom events: `TicketSubmitted`, `TicketAssigned`, `TicketStatusChanged`)
 
 ### DevOps
 
@@ -54,52 +56,99 @@ The project uses a decoupled client-server architecture with a React frontend an
 ```text
 QuickSmartAid/
 ├── docker-compose.yml
+├── CLAUDE.md
 ├── Project.md
 ├── README.md
+├── TestCase.md
 │
 ├── frontend/                       # Next.js web application
 │   ├── Dockerfile
+│   ├── middleware.ts               # Route guard (quickaid_session cookie)
 │   ├── app/                        # Next.js App Router
-│   │   ├── dashboard/              # Dashboard pages
-│   │   ├── login/                  # Authentication pages
 │   │   ├── layout.tsx              # Root layout
-│   │   └── page.tsx                # Landing page
+│   │   ├── page.tsx                # Landing page
+│   │   ├── login/                  # Entra ID sign-in
+│   │   ├── register/               # Post-login registration
+│   │   ├── dashboard/              # Student dashboard
+│   │   ├── account/                # User account page
+│   │   ├── tickets/                # Ticket list
+│   │   │   ├── new/                #   Create ticket
+│   │   │   └── [id]/               #   Ticket details / edit
+│   │   ├── assigned-tickets/       # Staff assigned-tickets view
+│   │   ├── admin/insights/         # Admin monitoring dashboard (UC-11)
+│   │   └── users/                  # Admin user management
+│   │       └── [id]/               #   User detail / role edit
 │   ├── components/                 # Reusable UI components
-│   │   ├── ui/                     # shadcn/ui primitives
-│   │   ├── app-sidebar.tsx         # Sidebar navigation
-│   │   ├── nav-main.tsx            # Main navigation
+│   │   ├── ui/                     #   shadcn/ui primitives
+│   │   ├── app-sidebar.tsx         #   Sidebar navigation
+│   │   ├── nav-main.tsx            #   Main navigation
+│   │   ├── protected-route.tsx     #   Client-side role gate
 │   │   └── ...
+│   ├── context/                    # React context providers (auth-context)
 │   ├── hooks/                      # Custom React hooks
-│   ├── lib/                        # Utility functions
+│   ├── lib/                        # Utilities (api, msal-config, utils)
+│   ├── config/                     # Site config + enums
+│   ├── types/                      # Shared TS types (user, insights)
 │   └── public/                     # Static assets
 │
-├── azure-functions/                # Azure Functions serverless API
-│   ├── function_app.py             # All API endpoint definitions
+├── backend/                        # Azure Functions serverless API (Python V2)
+│   ├── Dockerfile
+│   ├── function_app.py             # Main entry: registers blueprints, inits telemetry
 │   ├── host.json                   # Azure Functions host configuration
 │   ├── local.settings.json         # Local environment variables (gitignored)
 │   ├── requirements.txt            # Python dependencies
-│   └── shared/                     # Shared modules
-│       ├── cosmos_client.py        # Cosmos DB connection & helpers
-│       ├── validators.py           # Request input validation
-│       ├── user_service.py         # User CRUD operations
-│       ├── ticket_service.py       # Ticket CRUD & status operations
-│       └── email_service.py        # Azure Communication Services email notifications
+│   ├── blueprints/                 # API route blueprints
+│   │   ├── tickets.py              #   Public ticket endpoints
+│   │   ├── users.py                #   Public user endpoints
+│   │   ├── staff.py                #   Staff portal endpoints
+│   │   ├── admin.py                #   Admin portal endpoints
+│   │   └── insights.py             #   Admin analytics endpoint (UC-11)
+│   ├── utils/                      # Helpers
+│   │   ├── cosmos_client.py        #   Cosmos DB connection
+│   │   ├── http_helpers.py         #   JSON / error / CORS helpers
+│   │   ├── auth.py                 #   require_role() — X-User-Email lookup
+│   │   └── telemetry.py            #   Application Insights custom events
+│   └── shared/                     # Service layer
+│       ├── ticket/                 #   ticket_service, email_service, validator
+│       └── user/                   #   user_service, validator
 │
 └── docs/                           # Project documentation
 ```
 
 ## API Endpoints
 
-| Method | Endpoint                         | Description                          | Auth      |
-|--------|----------------------------------|--------------------------------------|-----------|
-| POST   | `/api/tickets`                   | Create a new ticket                  | Public    |
-| GET    | `/api/tickets?email={email}`     | Get tickets by email                 | Public    |
-| GET    | `/api/tickets?search={term}`     | Search tickets by ID or subject      | Public    |
-| GET    | `/api/tickets/{ticketId}`        | Get ticket details                   | Public    |
-| PUT    | `/api/tickets/{ticketId}/status` | Update ticket status                 | Required  |
-| PUT    | `/api/tickets/{ticketId}/assign` | Assign ticket to support staff       | Required  |
-| POST   | `/api/tickets/{ticketId}/notes`  | Add internal note to ticket          | Required  |
-| GET    | `/api/management/tickets`        | Get all tickets with filters         | Required  |
+### Public — tickets & users
+
+| Method | Endpoint                              | Description                                | Auth         |
+|--------|---------------------------------------|--------------------------------------------|--------------|
+| POST   | `/api/submit_ticket`                  | Create a new ticket                        | Any role     |
+| GET    | `/api/tickets`                        | Get tickets for the authenticated user     | Any role     |
+| GET    | `/api/tickets/search?q={query}`       | Search tickets by subject or ID            | Any role     |
+| GET    | `/api/tickets/{ticketId}`             | Get ticket details                         | Any role     |
+| PATCH  | `/api/tickets/{ticketId}`             | Edit a ticket (owner only, status=Open)    | Any role     |
+| POST   | `/api/users/login`                    | Upsert user on Entra ID login              | Public       |
+| GET    | `/api/users?email={email}`            | Get user by email                          | Public       |
+| GET    | `/api/users/{userId}`                 | Get user by ID                             | Any role     |
+
+### Staff portal (`X-User-Email` header, role: staff/admin)
+
+| Method | Endpoint                                      | Description                       |
+|--------|-----------------------------------------------|-----------------------------------|
+| GET    | `/api/staff/tickets`                          | View assigned tickets             |
+| PATCH  | `/api/staff/tickets/{ticketId}/status`        | Update ticket status              |
+
+### Admin portal (`X-User-Email` header, role: admin)
+
+| Method | Endpoint                                       | Description                            |
+|--------|------------------------------------------------|----------------------------------------|
+| GET    | `/api/manage/tickets`                          | View all tickets with filters          |
+| PATCH  | `/api/manage/tickets/{ticketId}/assign`        | Assign ticket to staff                 |
+| GET    | `/api/manage/staff`                            | List all staff members                 |
+| GET    | `/api/manage/users`                            | List all users                         |
+| PATCH  | `/api/manage/users/{userId}`                   | Update user role or display name       |
+| GET    | `/api/manage/insights?days=30`                 | Aggregated metrics for UC-11 dashboard |
+
+> Note: Uses the `manage` prefix because Azure Functions reserves the `admin` route segment.
 
 ## Prerequisites
 
