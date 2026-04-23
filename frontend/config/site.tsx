@@ -90,38 +90,18 @@ export const siteConfig = {
       items: [
         {
           title: "Users",
-          url: "/users",
+          url: "/admin/users",
           icon: <UsersIcon />,
         },
         {
           title: "Agents & Teams",
-          url: "/staff",
+          url: "/admin/agents-and-teams",
           icon: <BuildingIcon />,
         },
-        {
-          title: "Reports & Analytics",
-          url: "/analytics",
-          icon: <ChartBarIcon />,
-        },
-      ],
-    },
-    {
-      title: "Administration",
-      items: [
         {
           title: "Insights & Monitoring",
           url: "/admin/insights",
           icon: <ActivityIcon />,
-        },
-        {
-          title: "Workflows & SLA",
-          url: "/admin/workflows",
-          icon: <GitMergeIcon />,
-        },
-        {
-          title: "Security & Roles",
-          url: "/admin/security",
-          icon: <ShieldCheckIcon />,
         },
       ],
     },

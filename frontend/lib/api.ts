@@ -60,3 +60,43 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   if (!res.ok) throw await parseError(res);
   return res.json();
 }
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw await parseError(res);
+  return res.json();
+}
+
+// Teams Management
+import { Team, TeamUser, CreateTeamData, UpdateTeamData } from "../types/team";
+
+export async function getTeams() {
+  return apiGet<{ teams: Team[] }>("/manage/teams");
+}
+
+export async function createTeam(data: CreateTeamData) {
+  return apiPost<{ success: boolean; team: Team }>("/manage/teams", data);
+}
+
+export async function updateTeam(teamId: string, data: UpdateTeamData) {
+  return apiPatch<{ success: boolean; team: Team }>(`/manage/teams/${teamId}`, data);
+}
+
+export async function deleteTeam(teamId: string) {
+  return apiDelete<{ success: boolean; message: string }>(`/manage/teams/${teamId}`);
+}
+
+export async function getTeamUsers(teamId: string) {
+  return apiGet<{ users: TeamUser[] }>(`/manage/teams/${teamId}/users`);
+}
+
+export async function addUserToTeam(teamId: string, userId: string) {
+  return apiPost<{ success: boolean }>(`/manage/teams/${teamId}/users/${userId}`, {});
+}
+
+export async function removeUserFromTeam(teamId: string, userId: string) {
+  return apiDelete<{ success: boolean }>(`/manage/teams/${teamId}/users/${userId}`);
+}
