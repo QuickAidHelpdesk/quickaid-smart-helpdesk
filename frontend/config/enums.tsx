@@ -15,3 +15,5 @@ export const VALID_STATUSES = [
   "Resolved",
   "Closed",
 ] as const;
+
+export const VALID_ROLES = ["student", "staff", "admin", "agent"] as const;

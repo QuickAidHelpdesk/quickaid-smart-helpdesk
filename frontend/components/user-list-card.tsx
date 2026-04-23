@@ -58,6 +58,8 @@ export function UserListCard({
     switch (role.toLowerCase()) {
       case "admin":
         return "destructive";
+      case "agent":
+        return "outline";
       case "staff":
         return "secondary";
       case "student":

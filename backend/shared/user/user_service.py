@@ -16,12 +16,14 @@ def create_user(data: dict) -> dict:
 
     user_id = data.get("user_id") or str(uuid.uuid4())
 
+    role = data.get("role", "student")
     user = {
         "id": user_id,
         "user_id": user_id,
         "display_name": data["display_name"].strip(),
         "email": data["email"].strip().lower(),
-        "role": data.get("role", "student"),
+        "role": role,
+        "team_id": data.get("team_id") if role == "agent" else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -96,7 +98,7 @@ def get_users_by_role(role: str) -> list:
     container = get_container(USERS_CONTAINER)
 
     query = """
-        SELECT c.user_id, c.display_name, c.email
+        SELECT c.user_id, c.display_name, c.email, c.team_id
         FROM c
         WHERE c.role = @role
         ORDER BY c.display_name
@@ -115,7 +117,7 @@ def get_users_by_role(role: str) -> list:
 def get_all_users(filters: dict = None) -> list:
     container = get_container(USERS_CONTAINER)
     
-    query = "SELECT c.id, c.user_id, c.display_name, c.email, c.role, c.created_at, c.updated_at FROM c WHERE 1=1"
+    query = "SELECT c.id, c.user_id, c.display_name, c.email, c.role, c.team_id, c.created_at, c.updated_at FROM c WHERE 1=1"
     params = []
     
     if filters:
@@ -150,6 +152,11 @@ def update_user(user_id: str, updates: dict) -> dict | None:
         user['role'] = updates['role']
     if 'display_name' in updates:
         user['display_name'] = updates['display_name'].strip()
+    if 'team_id' in updates:
+        user['team_id'] = updates['team_id']
+    # Defensive: only agents can hold a team_id
+    if user.get('role') != 'agent':
+        user['team_id'] = None
     user['updated_at'] = datetime.now(timezone.utc).isoformat()
     container.upsert_item(body=user)
     return user

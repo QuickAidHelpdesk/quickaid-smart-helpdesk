@@ -10,9 +10,10 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 | Role | Access Level |
 |------|-------------|
-| student | Tickets (own), Users |
-| staff | Staff portal + student access |
-| admin | Admin portal + all access |
+| student | Tickets (own), Users — customer |
+| staff | Tickets (own), Users — customer (legacy ticket-handler if directly assigned) |
+| agent | Handler portal — sees all tickets in their team's category + any directly assigned. Belongs to a team via `team_id`. |
+| admin | Admin portal + all access (manages users, teams, ticket assignment) |
 
 ---
 
@@ -247,9 +248,14 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 ---
 
-## 3. Staff Blueprint (Role: staff or admin)
+## 3. Handler Blueprint (Role: staff, agent, or admin)
 
-### 3.1 GET `/api/staff/tickets` — View assigned tickets
+### 3.1 GET `/api/staff/tickets` — View visible tickets
+
+> Visibility model:
+> - **staff** (legacy handler): only tickets where `assigned_to == X-User-Email`.
+> - **agent**: directly-assigned tickets PLUS every ticket whose `category` matches the agent's team category (resolved via `team_id` → `team.category`). Agents without a `team_id` see only directly-assigned.
+> - **admin**: only directly-assigned tickets via this endpoint (admins use `/api/manage/tickets` for the full view).
 
 | Field | Value |
 |-------|-------|
@@ -278,6 +284,8 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 ```
 
 > Returns **403** if the user's role is `student`.
+
+**Agent test variant**: Use `X-User-Email: agent@example.com` (a user with role=agent and a `team_id` whose team category is "IT Support"). Submit a ticket with `category: "IT Support"` (do NOT assign it). The unassigned ticket should still appear in this list.
 
 ---
 
@@ -331,7 +339,10 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 **Email Triggered**: Status update email sent to the ticket submitter.
 
-> Staff can only update tickets assigned to them. Admins can update any ticket.
+> **Authorization rules**:
+> - **staff** (legacy): may update only tickets directly assigned to them.
+> - **agent**: may update tickets directly assigned to them OR any ticket whose category matches their team's category.
+> - **admin**: may update any ticket.
 
 ---
 
@@ -412,7 +423,13 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 **Email Triggered**: Assignment notification email sent to the staff member (`assigned_to`).
 
-> The `assigned_to` email must belong to a user with role `staff` or `admin` in the database.
+> The `assigned_to` email must belong to a user with role `staff`, `agent`, or `admin` in the database.
+
+**Agent assignment rules**:
+
+- If the assignee is an `agent`, they must have a `team_id` set, and the team's `category` must equal the ticket's `category`.
+- Mismatched category returns **400** with `"Agent's team category 'X' does not match ticket category 'Y'."`
+- Agent without a `team_id` returns **400** with `"Agent '<email>' has no team assigned."`
 
 ---
 
@@ -438,6 +455,157 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 ```
 
 > Returns **403** if the user's role is not `admin`.
+
+---
+
+### 4.4 GET `/api/manage/teams` — List all teams
+
+| Field | Value |
+|-------|-------|
+| Method | GET |
+| URL | `/api/manage/teams` |
+
+**Headers**:
+
+| Name | Value |
+|------|-------|
+| X-User-Email | adminuser@example.com |
+
+**Expected Response** (200):
+
+```json
+{
+  "teams": [ { "team_id": "...", "name": "IT Squad", "category": "IT Support", "created_at": "...", "updated_at": "..." } ]
+}
+```
+
+---
+
+### 4.5 POST `/api/manage/teams` — Create a team
+
+| Field | Value |
+|-------|-------|
+| Method | POST |
+| URL | `/api/manage/teams` |
+
+**Headers**:
+
+| Name | Value |
+|------|-------|
+| Content-Type | application/json |
+| X-User-Email | adminuser@example.com |
+
+**Body (Raw)**:
+
+```json
+{
+  "name": "IT Squad",
+  "category": "IT Support"
+}
+```
+
+**Expected Response** (201):
+
+```json
+{
+  "success": true,
+  "team": { "team_id": "...", "name": "IT Squad", "category": "IT Support", ... }
+}
+```
+
+> Returns **400** if `name` or `category` is missing/invalid (category must be one of `VALID_CATEGORIES`), or if a team with the same name already exists.
+
+---
+
+### 4.6 PATCH `/api/manage/teams/{teamId}` — Update team
+
+| Field | Value |
+|-------|-------|
+| Method | PATCH |
+| URL | `/api/manage/teams/{teamId}` |
+
+**Body (Raw)** (any subset of fields):
+
+```json
+{
+  "name": "IT Operations",
+  "category": "IT Support"
+}
+```
+
+**Expected Response** (200):
+
+```json
+{
+  "success": true,
+  "team": { ... }
+}
+```
+
+> Returns **400** for empty payload or duplicate name; **404** if `teamId` not found.
+
+---
+
+### 4.7 DELETE `/api/manage/teams/{teamId}` — Delete team
+
+| Field | Value |
+|-------|-------|
+| Method | DELETE |
+| URL | `/api/manage/teams/{teamId}` |
+
+**Headers**:
+
+| Name | Value |
+|------|-------|
+| X-User-Email | adminuser@example.com |
+
+**Expected Response** (200):
+
+```json
+{ "success": true, "message": "Team 'IT Squad' deleted." }
+```
+
+> Returns **409** if any agent still references this team — admin must reassign those agents first. Returns **404** if `teamId` not found.
+
+---
+
+### 4.8 GET `/api/manage/agents` — List all agents
+
+| Field | Value |
+|-------|-------|
+| Method | GET |
+| URL | `/api/manage/agents` |
+
+**Headers**:
+
+| Name | Value |
+|------|-------|
+| X-User-Email | adminuser@example.com |
+
+**Expected Response** (200):
+
+```json
+{
+  "agents": [ { "user_id": "...", "display_name": "Agent Smith", "email": "agent@example.com", "team_id": "..." } ]
+}
+```
+
+---
+
+### 4.9 PATCH `/api/manage/users/{userId}` — Set role/team for an agent
+
+To turn an existing user into an agent and assign them to a team:
+
+**Body (Raw)**:
+
+```json
+{
+  "role": "agent",
+  "team_id": "<team_id from /api/manage/teams>"
+}
+```
+
+> If `role` is changed away from `agent`, the backend defensively forces `team_id` to `null`.
 
 ---
 
@@ -509,3 +677,9 @@ Emails are **not** separate endpoints. They fire automatically as side effects o
 | 10 | `PATCH /api/manage/tickets/{ticketId}/assign` | Assign ticket to staff + verify **assignment email** |
 | 11 | `GET /api/staff/tickets` | View assigned tickets as staff |
 | 12 | `PATCH /api/staff/tickets/{ticketId}/status` | Update status to "In Progress" + verify **status update email** |
+| 13 | `POST /api/manage/teams` | Create an "IT Squad" team for the "IT Support" category |
+| 14 | `PATCH /api/manage/users/{agentId}` | Promote a user to `agent` and set their `team_id` |
+| 15 | `GET /api/staff/tickets` (as agent) | Verify the agent sees the IT Support ticket from step 4 even without direct assignment |
+| 16 | `PATCH /api/manage/tickets/{ticketId}/assign` | Assign that ticket to the agent — confirm 200 (category matches) |
+| 17 | `PATCH /api/manage/tickets/{otherTicketId}/assign` | Try assigning a non-IT ticket to the same agent — confirm **400** (category mismatch) |
+| 18 | `DELETE /api/manage/teams/{teamId}` | Try deleting the team while the agent still belongs — confirm **409** |

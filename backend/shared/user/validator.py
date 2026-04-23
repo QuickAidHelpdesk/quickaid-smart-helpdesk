@@ -5,7 +5,7 @@
 
 import re
 
-VALID_ROLES = ["student", "staff", "admin"]
+VALID_ROLES = ["student", "staff", "admin", "agent"]
 
 
 def validate_user(data: dict) -> list:

@@ -145,8 +145,12 @@ def search_tickets(q: str) -> list:
     ))
 
 
-# FR-07-01: Get tickets assigned to a specific staff member.
-def get_tickets_by_assignee(email: str, filters: dict = {}) -> list:
+# FR-07-01: Get tickets visible to a ticket-handler (staff/agent/admin).
+# Visibility = directly assigned to the handler OR (for agents) any ticket
+# whose category matches the handler's team category.
+def get_tickets_for_handler(
+    email: str, team_category: str | None = None, filters: dict = {}
+) -> list:
     container = get_container(TICKETS_CONTAINER)
 
     query = """
@@ -157,13 +161,16 @@ def get_tickets_by_assignee(email: str, filters: dict = {}) -> list:
             c.status,
             c.priority,
             c.email,
+            c.assigned_to,
             c.assigned_to_name,
             c.created_at
         FROM c
-        WHERE c.assigned_to = @email
+        WHERE (c.assigned_to = @email
+               OR (@team_category != null AND c.category = @team_category))
     """
     params = [
-        {"name": "@email", "value": email.strip().lower()}
+        {"name": "@email", "value": email.strip().lower()},
+        {"name": "@team_category", "value": team_category},
     ]
 
     if "status" in filters:

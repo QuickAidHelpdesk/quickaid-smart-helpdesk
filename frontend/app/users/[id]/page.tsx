@@ -51,7 +51,7 @@ const formSchema = z.object({
     .string()
     .min(2, "Display name must be at least 2 characters.")
     .max(100, "Display name must not exceed 100 characters."),
-  role: z.enum(["student", "staff", "admin"]),
+  role: z.enum(["student", "staff", "admin", "agent"]),
 });
 
 export default function AdminEditUserPage({
@@ -223,6 +223,7 @@ export default function AdminEditUserPage({
                           <SelectGroup>
                             <SelectItem value="student">Student</SelectItem>
                             <SelectItem value="staff">Staff</SelectItem>
+                            <SelectItem value="agent">Agent</SelectItem>
                             <SelectItem value="admin">Admin</SelectItem>
                           </SelectGroup>
                         </SelectContent>

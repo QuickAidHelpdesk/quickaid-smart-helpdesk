@@ -21,9 +21,10 @@ This application was developed as a Capstone Project for the MyMahir Microsoft D
 
 - **Issue Submission**: A modern web form letting users submit helpdesk tickets with categories and priority levels.
 - **Ticket Tracking & Editing**: Users can list, search, view, and edit (while still Open) their own tickets.
-- **Role-Based Access**: Three roles — Student, Staff, and Admin — each routed to an appropriate portal.
-- **Staff Portal**: Staff see tickets assigned to them and can update status (Open / In Progress / Resolved / Closed).
-- **Admin Portal**: Admins view all tickets, assign to staff, manage users and roles, and view a monitoring dashboard (UC-11) with Application Insights metrics.
+- **Role-Based Access**: Four roles — Student, Staff, Agent, and Admin. Students and Staff are customers; Agents handle tickets; Admin manages everything.
+- **Teams & Auto-Visibility**: Each team handles one ticket category (e.g., "IT Squad" → IT Support). Agents belong to a team via `team_id` and automatically see every open ticket in their team's category, on top of any tickets directly assigned to them.
+- **Handler Portal**: Staff/agents see their queue and can update status (Open / In Progress / Resolved / Closed). Agents may also act on tickets in their team's category, not just those directly assigned.
+- **Admin Portal**: Admins view all tickets, assign to a staff or agent (assigning to an agent is rejected if the team's category doesn't match the ticket's category), manage users/roles/teams, and view a monitoring dashboard (UC-11) with Application Insights metrics.
 - **Automated Notifications**: Emails on ticket creation, edits, status changes, and assignments via Azure Communication Services.
 
 ## Architecture and Technology Stack
@@ -41,10 +42,11 @@ The project uses a decoupled client-server architecture with a Next.js frontend 
 ### Backend
 
 - **Runtime**: Azure Functions (Python 3.9+, V2 programming model with Blueprints)
-- **Database**: Azure Cosmos DB (NoSQL, Core SQL API)
+- **Database**: Azure Cosmos DB (NoSQL, Core SQL API). Containers: `tickets`, `users`, `status_history`, `teams`
 - **Email**: Azure Communication Services (Email) for transactional emails
 - **Security**: Azure Key Vault for secret management
 - **Monitoring**: Azure Application Insights (custom events: `TicketSubmitted`, `TicketAssigned`, `TicketStatusChanged`)
+- **Roles**: `student`, `staff` (customers); `agent` (handler, belongs to a team); `admin` (full access)
 
 ### DevOps
 
@@ -100,9 +102,10 @@ QuickSmartAid/
 │   ├── blueprints/                 # API route blueprints
 │   │   ├── tickets.py              #   Public ticket endpoints
 │   │   ├── users.py                #   Public user endpoints
-│   │   ├── staff.py                #   Staff portal endpoints
+│   │   ├── staff.py                #   Handler portal (staff/agent/admin)
 │   │   ├── admin.py                #   Admin portal endpoints
-│   │   └── insights.py             #   Admin analytics endpoint (UC-11)
+│   │   ├── insights.py             #   Admin analytics endpoint (UC-11)
+│   │   └── teams.py                #   Admin team CRUD + agent listing
 │   ├── utils/                      # Helpers
 │   │   ├── cosmos_client.py        #   Cosmos DB connection
 │   │   ├── http_helpers.py         #   JSON / error / CORS helpers
@@ -110,7 +113,8 @@ QuickSmartAid/
 │   │   └── telemetry.py            #   Application Insights custom events
 │   └── shared/                     # Service layer
 │       ├── ticket/                 #   ticket_service, email_service, validator
-│       └── user/                   #   user_service, validator
+│       ├── user/                   #   user_service, validator
+│       └── team/                   #   team_service, validator
 │
 └── docs/                           # Project documentation
 ```
@@ -130,12 +134,12 @@ QuickSmartAid/
 | GET    | `/api/users?email={email}`            | Get user by email                          | Public       |
 | GET    | `/api/users/{userId}`                 | Get user by ID                             | Any role     |
 
-### Staff portal (`X-User-Email` header, role: staff/admin)
+### Handler portal (`X-User-Email` header, role: staff/agent/admin)
 
 | Method | Endpoint                                      | Description                       |
 |--------|-----------------------------------------------|-----------------------------------|
-| GET    | `/api/staff/tickets`                          | View assigned tickets             |
-| PATCH  | `/api/staff/tickets/{ticketId}/status`        | Update ticket status              |
+| GET    | `/api/staff/tickets`                          | View visible tickets — agents see all tickets in their team's category + any directly assigned; staff see only directly assigned |
+| PATCH  | `/api/staff/tickets/{ticketId}/status`        | Update ticket status (agents may also act on tickets in their team's category) |
 
 ### Admin portal (`X-User-Email` header, role: admin)
 
@@ -147,6 +151,11 @@ QuickSmartAid/
 | GET    | `/api/manage/users`                            | List all users                         |
 | PATCH  | `/api/manage/users/{userId}`                   | Update user role or display name       |
 | GET    | `/api/manage/insights?days=30`                 | Aggregated metrics for UC-11 dashboard |
+| GET    | `/api/manage/teams`                            | List all teams                         |
+| POST   | `/api/manage/teams`                            | Create a team (name unique)            |
+| PATCH  | `/api/manage/teams/{teamId}`                   | Update team name/category              |
+| DELETE | `/api/manage/teams/{teamId}`                   | Delete team (409 if any agent references it) |
+| GET    | `/api/manage/agents`                           | List all agents (with `team_id`)       |
 
 > Note: Uses the `manage` prefix because Azure Functions reserves the `admin` route segment.
 
@@ -195,6 +204,7 @@ Create `backend/local.settings.json` with the following structure:
     "COSMOS_CONTAINER_TICKETS": "tickets",
     "COSMOS_CONTAINER_USERS": "users",
     "COSMOS_CONTAINER_STATUS_HISTORY": "status_history",
+    "COSMOS_CONTAINER_TEAMS": "teams",
     "EMAIL_CONNECTION_STRING": "<your-azure-communication-services-connection-string>",
     "EMAIL_SENDER_ADDRESS": "<your-verified-sender-address>",
     "APPLICATIONINSIGHTS_CONNECTION_STRING": "<your-application-insights-connection-string>",
@@ -213,6 +223,7 @@ Create `backend/local.settings.json` with the following structure:
 | `COSMOS_CONTAINER_TICKETS` | Container for tickets | Default: `tickets` |
 | `COSMOS_CONTAINER_USERS` | Container for users | Default: `users` |
 | `COSMOS_CONTAINER_STATUS_HISTORY` | Container for status history | Default: `status_history` |
+| `COSMOS_CONTAINER_TEAMS` | Container for teams (agent team-category mapping) | Default: `teams` (partition key `/category`) |
 | `EMAIL_CONNECTION_STRING` | Azure Communication Services connection string | Azure Portal → Communication Services → Keys → Connection String |
 | `EMAIL_SENDER_ADDRESS` | Verified sender email address (e.g., `DoNotReply@xxx.azurecomm.net`) | Azure Portal → Email Communication Services → Provision Domains → MailFrom addresses |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Application Insights connection string (enables telemetry + custom events, FR-11-01/02) | Azure Portal → `quickaid-func` Application Insights → Properties → Connection String |
@@ -341,6 +352,7 @@ az functionapp config appsettings set \
     COSMOS_CONTAINER_TICKETS="tickets" \
     COSMOS_CONTAINER_USERS="users" \
     COSMOS_CONTAINER_STATUS_HISTORY="status_history" \
+    COSMOS_CONTAINER_TEAMS="teams" \
     EMAIL_CONNECTION_STRING="<your-azure-communication-services-connection-string>" \
     EMAIL_SENDER_ADDRESS="DoNotReply@<your-azure-subdomain>.azurecomm.net"
 ```

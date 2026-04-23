@@ -22,6 +22,7 @@ from shared.ticket.ticket_service import (
 )
 from shared.ticket.validator import validate_assignment
 from shared.user.user_service import get_user_by_email, get_users_by_role
+from shared.team.team_service import get_team_by_id
 from utils.auth import require_role
 from utils.http_helpers import (
     error_response,
@@ -112,10 +113,35 @@ def assign_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if not staff_user:
         return error_response(f"Staff member '{staff_email}' not found.", 404)
 
-    if staff_user.get("role") not in ["staff", "admin"]:
+    if staff_user.get("role") not in ["staff", "admin", "agent"]:
         return error_response(
-            f"User '{staff_email}' is not a staff member or admin.", 400
+            f"User '{staff_email}' is not a ticket-handler (staff/agent/admin).",
+            400,
         )
+
+    # Agents must belong to a team whose category matches the ticket
+    if staff_user.get("role") == "agent":
+        team_id = staff_user.get("team_id")
+        if not team_id:
+            return error_response(
+                f"Agent '{staff_email}' has no team assigned.", 400
+            )
+        try:
+            team = get_team_by_id(team_id)
+        except Exception as e:
+            logger.error("Failed to look up team %s: %s", team_id, e)
+            return error_response("Failed to verify agent's team.", 500)
+        if not team:
+            return error_response(
+                f"Agent '{staff_email}' references a team that no longer exists.",
+                400,
+            )
+        if team["category"] != ticket["category"]:
+            return error_response(
+                f"Agent's team category '{team['category']}' does not match "
+                f"ticket category '{ticket['category']}'.",
+                400,
+            )
 
     # Assign the ticket
     try:

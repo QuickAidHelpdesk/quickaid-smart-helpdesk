@@ -44,7 +44,7 @@ This section defines the project boundary which includes system functionalities,
 
 ### I. System User
 
-The primary users of the QuickAid Smart Campus Helpdesk system are university community members including Students and Staff who submit helpdesk requests, Support Staff who manage and resolve assigned tickets, and Administrators who oversee the entire helpdesk operation and manage ticket assignments across the system.
+The primary users of the QuickAid Smart Campus Helpdesk system are university community members. Students and Staff are the customer audience who submit helpdesk requests. Support Agents (organised into category-specific teams such as "IT Squad" or "Library Team") manage and resolve tickets within their team's category. Administrators oversee the entire helpdesk operation, manage user roles, define teams, and assign individual tickets to agents.
 
 ### II. System Platform
 
@@ -52,7 +52,7 @@ The proposed system is a web-based application hosted on Microsoft Azure which c
 
 ### III. Authentication and Access Control
 
-The proposed system integrates Azure Active Directory (Azure AD) authentication into the platform to manage secure login and role-based access control for Support Staff and Administrator users, ensuring that each user can only access the features and data permitted for their assigned role.
+The proposed system integrates Azure Active Directory (Azure AD) authentication into the platform to manage secure login and role-based access control across four roles — Student, Staff, Agent, and Admin — ensuring that each user can only access the features and data permitted for their assigned role. Agents additionally hold a `team_id` linking them to a category-specific team, which determines the queue of tickets they can see and act on.
 
 ### IV. Ticket Submission & Storage
 
@@ -124,9 +124,9 @@ This section will discuss all the actors involved in the QuickAid system with a 
 
 | No. | Actor | Role |
 |-----|-------|------|
-| 1 | Student/Staff | Undergraduate student, postgraduate student, academic staff, or administrative staff, who encounters a problem or requires support from the campus helpdesk |
-| 2 | Support Agent | Trained university staff member responsible for resolving helpdesk tickets assigned to them by the Admin. They work within the support portal to manage their workload, update ticket statuses, and communicate resolutions back to users |
-| 3 | Admin | Held by the Helpdesk Manager or IT Supervisor at the university. They are responsible for the operational management of the entire helpdesk |
+| 1 | Student/Staff | Undergraduate student, postgraduate student, academic staff, or administrative staff, who encounters a problem or requires support from the campus helpdesk. Both `student` and `staff` roles are customers in the system. |
+| 2 | Support Agent | Trained university staff member responsible for resolving helpdesk tickets within their team's category. Agents belong to one team (e.g., "IT Squad" handles "IT Support" tickets) and automatically see every ticket in that category, in addition to any ticket the Admin assigns directly to them. They update ticket statuses and communicate resolutions back to users. Stored as the `agent` role with a `team_id` reference. |
+| 3 | Admin | Held by the Helpdesk Manager or IT Supervisor at the university. Responsible for the operational management of the helpdesk: managing user roles, defining/editing/deleting teams, assigning tickets to agents, and monitoring overall performance. |
 
 ---
 
