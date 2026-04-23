@@ -361,7 +361,7 @@ az functionapp config appsettings set \
 
 ```bash
 cd backend
-func azure functionapp publish quickaid-api
+func azure functionapp publish quickaid-func
 ```
 
 The API will be available at `https://quickaid-api.azurewebsites.net/api/`.
