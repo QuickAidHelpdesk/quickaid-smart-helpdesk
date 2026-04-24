@@ -28,10 +28,19 @@ def create_team(data: dict) -> dict:
 def get_all_teams() -> list:
     container = get_container(TEAMS_CONTAINER)
     query = "SELECT * FROM c ORDER BY c.name ASC"
-    return list(container.query_items(
+    teams = list(container.query_items(
         query=query,
         enable_cross_partition_query=True
     ))
+    
+    ut_container = get_container(USERS_TEAMS_CONTAINER)
+    for team in teams:
+        q = "SELECT VALUE COUNT(1) FROM c WHERE c.team_id = @team_id"
+        p = [{"name": "@team_id", "value": team["team_id"]}]
+        count_res = list(ut_container.query_items(query=q, parameters=p, enable_cross_partition_query=True))
+        team["member_count"] = count_res[0] if count_res else 0
+        
+    return teams
 
 def get_team_by_id(team_id: str) -> dict | None:
     container = get_container(TEAMS_CONTAINER)

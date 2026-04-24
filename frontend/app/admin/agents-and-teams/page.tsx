@@ -2,15 +2,15 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/auth-context";
-import { 
-  getTeams, 
-  createTeam, 
-  updateTeam, 
-  deleteTeam, 
-  getTeamUsers, 
-  addUserToTeam, 
+import {
+  getTeams,
+  createTeam,
+  updateTeam,
+  deleteTeam,
+  getTeamUsers,
+  addUserToTeam,
   removeUserFromTeam,
-  apiGet 
+  apiGet,
 } from "@/lib/api";
 import { Team, TeamUser } from "@/types/team";
 import { User } from "@/types/user";
@@ -18,24 +18,36 @@ import { TeamListCard } from "@/components/team-list-card";
 import { ErrorState } from "@/components/error-state";
 import { Spinner } from "@/components/ui/spinner";
 import { ProtectedRoute } from "@/components/protected-route";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogFooter,
-  DialogDescription
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Trash2, Plus, Loader2 } from "lucide-react";
 
@@ -45,7 +57,7 @@ const CATEGORIES = [
   "Academic Services",
   "Library",
   "Finance",
-  "General Inquiry"
+  "General Inquiry",
 ];
 
 export default function TeamsPage() {
@@ -58,10 +70,14 @@ export default function TeamsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isManageUsersOpen, setIsManageUsersOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  
+
   // Form states
-  const [formData, setFormData] = useState({ name: "", category: "General Inquiry" });
+  const [formData, setFormData] = useState({
+    name: "",
+    category: "General Inquiry",
+  });
   const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
   const [allAgents, setallAgents] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -84,7 +100,9 @@ export default function TeamsPage() {
     try {
       // Fetch all agent and admins to be able to add them to teams
       const res = await apiGet<{ users: User[] }>("/manage/users?role=agent");
-      const resAdmin = await apiGet<{ users: User[] }>("/manage/users?role=admin");
+      const resAdmin = await apiGet<{ users: User[] }>(
+        "/manage/users?role=admin",
+      );
       setallAgents([...(res.users || []), ...(resAdmin.users || [])]);
     } catch (err) {
       console.error("Failed to fetch agent:", err);
@@ -129,13 +147,15 @@ export default function TeamsPage() {
   };
 
   const handleDeleteTeam = async (team: Team) => {
-    if (!confirm(`Are you sure you want to delete the team "${team.name}"?`)) return;
     try {
+      setSubmitting(true);
       await deleteTeam(team.team_id);
       toast.success("Team deleted successfully");
       fetchTeams();
     } catch (err: any) {
       toast.error(err.message || "Failed to delete team");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -171,7 +191,7 @@ export default function TeamsPage() {
     try {
       await removeUserFromTeam(selectedTeam.team_id, userId);
       toast.success("User removed from team");
-      setTeamUsers(teamUsers.filter(u => u.user_id !== userId));
+      setTeamUsers(teamUsers.filter((u) => u.user_id !== userId));
     } catch (err: any) {
       toast.error(err.message || "Failed to remove user");
     }
@@ -187,17 +207,18 @@ export default function TeamsPage() {
 
   return (
     <ProtectedRoute allowedRoles={["admin"]}>
-    <div className="flex flex-col gap-6 p-6">
-      
+      <div className="flex flex-col gap-6 p-6">
         <>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Agents & Teams</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Agents & Teams
+            </h1>
             <p className="text-muted-foreground mt-2">
               Manage support agent teams and their specialized categories.
             </p>
           </div>
 
-          <TeamListCard 
+          <TeamListCard
             teams={teams}
             loading={loading}
             onRefresh={fetchTeams}
@@ -211,160 +232,135 @@ export default function TeamsPage() {
               setIsEditDialogOpen(true);
             }}
             onDeleteTeam={handleDeleteTeam}
-            onManageUsers={handleManageUsers}
+            onManageUsers={() => {}}
           />
         </>
 
-      {/* Create Team Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Team</DialogTitle>
-            <DialogDescription>Add a new support team to the system.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Team Name</Label>
-              <Input 
-                id="name" 
-                value={formData.name} 
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g. IT Technical Team"
-              />
+        {/* Create Team Dialog */}
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Team</DialogTitle>
+              <DialogDescription>
+                Add a new support team to the system.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="create-name">Team Name</FieldLabel>
+                  <Input
+                    id="create-name"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    placeholder="Enter team name..."
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="create-category">Category</FieldLabel>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(val) =>
+                      setFormData({ ...formData, category: val })
+                    }
+                  >
+                    <SelectTrigger id="create-category">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectGroup>
+                        {CATEGORIES.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </FieldGroup>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="category">Category</Label>
-              <Select 
-                value={formData.category} 
-                onValueChange={(val) => setFormData({ ...formData, category: val })}
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsCreateDialogOpen(false)}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateTeam} disabled={submitting}>
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Create Team
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateTeam} disabled={submitting}>
+                {submitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : null}
+                Create Team
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* Edit Team Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Team</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-name">Team Name</Label>
-              <Input 
-                id="edit-name" 
-                value={formData.name} 
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
+        {/* Edit Team Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Team</DialogTitle>
+              <DialogDescription>
+                Update the details for this support team.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="edit-name">Team Name</FieldLabel>
+                  <Input
+                    id="edit-name"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="edit-category">Category</FieldLabel>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(val) =>
+                      setFormData({ ...formData, category: val })
+                    }
+                  >
+                    <SelectTrigger id="edit-category">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectGroup>
+                        {CATEGORIES.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </FieldGroup>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-category">Category</Label>
-              <Select 
-                value={formData.category} 
-                onValueChange={(val) => setFormData({ ...formData, category: val })}
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleUpdateTeam} disabled={submitting}>
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Manage Users Dialog */}
-      <Dialog open={isManageUsersOpen} onOpenChange={setIsManageUsersOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Manage Team Members: {selectedTeam?.name}</DialogTitle>
-            <DialogDescription>Add or remove support agents from this team.</DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <h3 className="text-sm font-medium mb-2">Team Members</h3>
-            <div className="border rounded-md min-h-[100px] max-h-[200px] overflow-y-auto mb-6">
-              {loadingUsers ? (
-                <div className="flex items-center justify-center h-full p-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : teamUsers.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground text-sm">No members in this team.</div>
-              ) : (
-                <table className="w-full text-sm">
-                  <tbody className="divide-y">
-                    {teamUsers.map(u => (
-                      <tr key={u.user_id}>
-                        <td className="p-2 pl-4 font-medium">{u.display_name}</td>
-                        <td className="p-2 text-muted-foreground">{u.email}</td>
-                        <td className="p-2 text-right pr-4">
-                          <Button variant="ghost" size="icon" onClick={() => handleRemoveUser(u.user_id)} className="text-destructive">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            <h3 className="text-sm font-medium mb-2">Available Agents</h3>
-            <div className="border rounded-md max-h-[200px] overflow-y-auto">
-              <table className="w-full text-sm">
-                <tbody className="divide-y">
-                  {allAgents
-                    .filter(s => !teamUsers.some(tu => tu.user_id === s.user_id))
-                    .map(s => (
-                      <tr key={s.user_id}>
-                        <td className="p-2 pl-4 font-medium">{s.display_name}</td>
-                        <td className="p-2 text-muted-foreground">{s.email}</td>
-                        <td className="p-2 text-right pr-4">
-                          <Button variant="ghost" size="icon" onClick={() => handleAddUser(s.user_id)}>
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button onClick={() => setIsManageUsersOpen(false)}>Done</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateTeam} disabled={submitting}>
+                {submitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : null}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </ProtectedRoute>
   );
 }

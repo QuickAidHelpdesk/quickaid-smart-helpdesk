@@ -3,6 +3,7 @@ export interface Team {
   team_id: string;
   name: string;
   category: string;
+  member_count?: number;
   created_at: string;
   updated_at: string;
 }
