@@ -36,11 +36,17 @@ export function AgentListsCard({
   onAddUser,
   onRemoveUser,
 }: AgentListsCardProps) {
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [membersSearchInput, setMembersSearchInput] = useState("");
+  const [membersSearchQuery, setMembersSearchQuery] = useState("");
+  const [agentsSearchInput, setAgentsSearchInput] = useState("");
+  const [agentsSearchQuery, setAgentsSearchQuery] = useState("");
 
-  const handleSearch = () => {
-    setSearchQuery(searchInput);
+  const handleMembersSearch = () => {
+    setMembersSearchQuery(membersSearchInput);
+  };
+
+  const handleAgentsSearch = () => {
+    setAgentsSearchQuery(agentsSearchInput);
   };
 
   const availableAgents = allAgents.filter(
@@ -49,14 +55,14 @@ export function AgentListsCard({
 
   const filteredTeamUsers = teamUsers.filter(
     (u) =>
-      u.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase()),
+      u.display_name.toLowerCase().includes(membersSearchQuery.toLowerCase()) ||
+      u.email.toLowerCase().includes(membersSearchQuery.toLowerCase()),
   );
 
   const filteredAvailableAgents = availableAgents.filter(
     (s) =>
-      s.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.email.toLowerCase().includes(searchQuery.toLowerCase()),
+      s.display_name.toLowerCase().includes(agentsSearchQuery.toLowerCase()) ||
+      s.email.toLowerCase().includes(agentsSearchQuery.toLowerCase()),
   );
 
   if (loading) {
@@ -69,23 +75,6 @@ export function AgentListsCard({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search agents by name or email..."
-            className="pl-8"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          />
-        </div>
-        <Button onClick={handleSearch} className="w-full sm:w-auto">
-          Search
-        </Button>
-      </div>
-
       <div className="grid gap-6 md:grid-cols-2">
         {/* Current Team Members */}
         <Card>
@@ -94,6 +83,25 @@ export function AgentListsCard({
             <CardDescription>Users currently within this team.</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search members..."
+                  className="pl-8"
+                  value={membersSearchInput}
+                  onChange={(e) => setMembersSearchInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleMembersSearch()}
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button onClick={handleMembersSearch} className="w-full sm:w-auto">
+                  Search
+                </Button>
+              </div>
+            </div>
+
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted">
@@ -110,7 +118,7 @@ export function AgentListsCard({
                         colSpan={3}
                         className="h-24 text-center text-muted-foreground"
                       >
-                        {searchQuery
+                        {membersSearchQuery
                           ? "No matching members found."
                           : "No members in this team."}
                       </TableCell>
@@ -153,6 +161,25 @@ export function AgentListsCard({
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search available agents..."
+                  className="pl-8"
+                  value={agentsSearchInput}
+                  onChange={(e) => setAgentsSearchInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAgentsSearch()}
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button onClick={handleAgentsSearch} className="w-full sm:w-auto">
+                  Search
+                </Button>
+              </div>
+            </div>
+
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted">
@@ -169,7 +196,7 @@ export function AgentListsCard({
                         colSpan={3}
                         className="h-24 text-center text-muted-foreground"
                       >
-                        {searchQuery
+                        {agentsSearchQuery
                           ? "No matching agents found."
                           : "No more agents available to add."}
                       </TableCell>
