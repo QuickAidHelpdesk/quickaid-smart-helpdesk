@@ -11,7 +11,7 @@ import azure.functions as func
 from shared.ticket.email_service import send_status_update_email
 from shared.ticket.ticket_service import (
     get_ticket_by_id,
-    get_tickets_by_assignee,
+    get_tickets_for_agent,
     update_ticket_status,
 )
 from shared.ticket.validator import validate_status_update
@@ -48,12 +48,12 @@ def get_agent_tickets(req: func.HttpRequest) -> func.HttpResponse:
     filters = {k: v for k, v in filters.items() if v}
 
     try:
-        tickets = get_tickets_by_assignee(user["email"], filters)
+        tickets = get_tickets_for_agent(user["user_id"], filters)
 
         # FR-07-04
         if not tickets:
             return json_response({
-                "message": "You have no tickets currently assigned to you.",
+                "message": "You have no tickets available.",
                 "tickets": []
             })
 
@@ -89,9 +89,13 @@ def update_ticket_status_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if not ticket:
         return error_response("Ticket not found.", 404)
 
-    # Agent can only update tickets assigned to them; admin can update any
-    if user["role"] == "agent" and ticket.get("assigned_to") != user["email"]:
-        return error_response("You can only update tickets assigned to you.", 403)
+    # Agent can only update tickets for their teams
+    if user["role"] == "agent":
+        from shared.team.team_service import get_teams_for_user
+        teams = get_teams_for_user(user["user_id"])
+        categories = list(set([t.get("category") for t in teams if t.get("category")]))
+        if ticket.get("category") not in categories:
+            return error_response("You can only update tickets for categories assigned to your teams.", 403)
 
     # Parse and validate request body
     try:
@@ -129,9 +133,9 @@ def update_ticket_status_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logger.error("Status update email failed for ticket %s: %s", ticket_id, e)
 
-    # FR-08-02: Return refreshed list of assigned tickets
+    # FR-08-02: Return refreshed list of agent tickets
     try:
-        tickets = get_tickets_by_assignee(user["email"])
+        tickets = get_tickets_for_agent(user["user_id"])
     except Exception as e:
         logger.error("Failed to retrieve refreshed ticket list: %s", e)
         tickets = []

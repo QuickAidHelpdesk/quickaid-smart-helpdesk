@@ -44,7 +44,6 @@ interface TicketDetails {
   category: string;
   status: string;
   priority: string;
-  assigned_to_name?: string | null;
   created_at: string;
   updated_at: string;
   resolved_at?: string | null;
@@ -258,27 +257,6 @@ export default function TicketDetailsPage({
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Assignee
-                </span>
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    {ticket.assigned_to_name ? (
-                      <span className="text-muted-foreground text-xs font-bold">
-                        {ticket.assigned_to_name.charAt(0).toUpperCase()}
-                      </span>
-                    ) : (
-                      <User className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </div>
-                  <span className="text-sm font-medium">
-                    {ticket.assigned_to_name
-                      ? ticket.assigned_to_name
-                      : "Unassigned"}
-                  </span>
-                </div>
-              </div>
 
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">

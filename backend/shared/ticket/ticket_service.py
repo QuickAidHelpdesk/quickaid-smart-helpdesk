@@ -40,8 +40,6 @@ def create_ticket(data: dict) -> dict:
         "category": data["category"],
         "priority": data["priority"],
         "status": "Open",
-        "assigned_to": None,
-        "assigned_to_name": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "resolved_at": None,
@@ -63,7 +61,6 @@ def get_tickets_by_user_id(email: str, filters: dict = {}) -> list:
             c.category,
             c.status,
             c.priority,
-            c.assigned_to_name,
             c.created_at
         FROM c
         WHERE c.email = @email
@@ -124,7 +121,6 @@ def search_tickets(q: str) -> list:
             c.category,
             c.status,
             c.priority,
-            c.assigned_to_name,
             c.created_at
         FROM c
         WHERE
@@ -145,11 +141,30 @@ def search_tickets(q: str) -> list:
     ))
 
 
-# FR-07-01: Get tickets assigned to a specific agent member.
-def get_tickets_by_assignee(email: str, filters: dict = {}) -> list:
+# FR-07-01: Get tickets for teams the agent is in (matched by category).
+def get_tickets_for_agent(user_id: str, filters: dict = {}) -> list:
+    from shared.team.team_service import get_teams_for_user
     container = get_container(TICKETS_CONTAINER)
+    
+    teams = get_teams_for_user(user_id)
+    if not teams:
+        return []
+        
+    categories = list(set([t.get("category") for t in teams if t.get("category")]))
+    if not categories:
+        return []
 
-    query = """
+    # Build IN clause dynamically
+    cat_params = []
+    cat_names = []
+    for i, cat in enumerate(categories):
+        pname = f"@cat_{i}"
+        cat_names.append(pname)
+        cat_params.append({"name": pname, "value": cat})
+        
+    in_clause = ", ".join(cat_names)
+
+    query = f"""
         SELECT
             c.ticket_id,
             c.subject,
@@ -157,14 +172,11 @@ def get_tickets_by_assignee(email: str, filters: dict = {}) -> list:
             c.status,
             c.priority,
             c.email,
-            c.assigned_to_name,
             c.created_at
         FROM c
-        WHERE c.assigned_to = @email
+        WHERE c.category IN ({in_clause})
     """
-    params = [
-        {"name": "@email", "value": email.strip().lower()}
-    ]
+    params = cat_params
 
     if "status" in filters:
         query += " AND c.status = @status"
@@ -195,8 +207,6 @@ def get_all_tickets(filters: dict = {}) -> list:
             c.category,
             c.status,
             c.priority,
-            c.assigned_to,
-            c.assigned_to_name,
             c.created_at
         FROM c
         WHERE 1=1
@@ -273,28 +283,6 @@ def update_ticket(ticket: dict, updates: dict) -> tuple[dict, dict]:
     return ticket, changes
 
 
-# FR-10-02, FR-10-03: Assign ticket to a agent member.
-def assign_ticket(ticket: dict, agent_user: dict) -> dict:
-    container = get_container(TICKETS_CONTAINER)
-
-    old_status = ticket["status"]
-    ticket["assigned_to"] = agent_user["email"]
-    ticket["assigned_to_name"] = agent_user["display_name"]
-    ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
-
-    # FR-10-03: Auto-change Open to In Progress on assignment
-    if ticket["status"] == "Open":
-        ticket["status"] = "In Progress"
-
-    container.upsert_item(body=ticket)
-
-    # Write status history if status changed
-    if ticket["status"] != old_status:
-        add_status_history(
-            ticket["ticket_id"], old_status, ticket["status"], agent_user["email"]
-        )
-
-    return ticket
 
 
 # Write a status change record to the status_history container (best-effort).
