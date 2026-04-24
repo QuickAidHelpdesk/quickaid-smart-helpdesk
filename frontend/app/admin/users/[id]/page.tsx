@@ -146,7 +146,7 @@ export default function AdminEditUserPage({
             "We couldn't find the user you're looking for. They may have been deleted or you might not have permission to view them."}
         </p>
         <Button asChild className="mt-4" variant="outline">
-          <Link href="/users">
+          <Link href="/admin/users">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
           </Link>
         </Button>
@@ -162,7 +162,7 @@ export default function AdminEditUserPage({
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="/users" className="flex items-center gap-1">
+                <Link href="/admin/users" className="flex items-center gap-1">
                   <ArrowLeft className="h-4 w-4" />
                   Users
                 </Link>

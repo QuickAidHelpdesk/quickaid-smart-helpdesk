@@ -163,7 +163,7 @@ export function UserListCard({
                     </TableCell>
                     <TableCell className="text-right pr-4">
                       <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/users/${user.user_id}`}>
+                        <Link href={`/admin/users/${user.user_id}`}>
                           View <ArrowRightIcon className="w-4 h-4 ml-1" />
                         </Link>
                       </Button>
