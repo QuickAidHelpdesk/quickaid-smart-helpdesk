@@ -13,7 +13,7 @@
 
 ## Overview
 
-QuickAid is a smart campus helpdesk application designed for university students and staff to submit issues, track requests, and receive timely support. Built with a Next.js frontend and Azure Functions serverless backend, QuickAid enables ticket submission, status tracking, automated notifications, and secure data management powered by Azure Cosmos DB.
+QuickAid is a smart campus helpdesk application designed for university users and agent to submit issues, track requests, and receive timely support. Built with a Next.js frontend and Azure Functions serverless backend, QuickAid enables ticket submission, status tracking, automated notifications, and secure data management powered by Azure Cosmos DB.
 
 This application was developed as a Capstone Project for the MyMahir Microsoft Developer programme.
 
@@ -21,9 +21,9 @@ This application was developed as a Capstone Project for the MyMahir Microsoft D
 
 - **Issue Submission**: A modern web form letting users submit helpdesk tickets with categories and priority levels.
 - **Ticket Tracking & Editing**: Users can list, search, view, and edit (while still Open) their own tickets.
-- **Role-Based Access**: Three roles — Student, Staff, and Admin — each routed to an appropriate portal.
-- **Staff Portal**: Staff see tickets assigned to them and can update status (Open / In Progress / Resolved / Closed).
-- **Admin Portal**: Admins view all tickets, assign to staff, manage users and roles, and view a monitoring dashboard (UC-11) with Application Insights metrics.
+- **Role-Based Access**: Three roles — User, Agent, and Admin — each routed to an appropriate portal.
+- **Agent Portal**: Agent see tickets assigned to them and can update status (Open / In Progress / Resolved / Closed).
+- **Admin Portal**: Admins view all tickets, assign to agent, manage users and roles, and view a monitoring dashboard (UC-11) with Application Insights metrics.
 - **Automated Notifications**: Emails on ticket creation, edits, status changes, and assignments via Azure Communication Services.
 
 ## Architecture and Technology Stack
@@ -69,12 +69,12 @@ QuickSmartAid/
 │   │   ├── page.tsx                # Landing page
 │   │   ├── login/                  # Entra ID sign-in
 │   │   ├── register/               # Post-login registration
-│   │   ├── dashboard/              # Student dashboard
+│   │   ├── dashboard/              # User dashboard
 │   │   ├── account/                # User account page
 │   │   ├── tickets/                # Ticket list
 │   │   │   ├── new/                #   Create ticket
 │   │   │   └── [id]/               #   Ticket details / edit
-│   │   ├── assigned-tickets/       # Staff assigned-tickets view
+│   │   ├── assigned-tickets/       # Agent assigned-tickets view
 │   │   ├── admin/insights/         # Admin monitoring dashboard (UC-11)
 │   │   └── users/                  # Admin user management
 │   │       └── [id]/               #   User detail / role edit
@@ -100,7 +100,7 @@ QuickSmartAid/
 │   ├── blueprints/                 # API route blueprints
 │   │   ├── tickets.py              #   Public ticket endpoints
 │   │   ├── users.py                #   Public user endpoints
-│   │   ├── staff.py                #   Staff portal endpoints
+│   │   ├── agent.py                #   Agent portal endpoints
 │   │   ├── admin.py                #   Admin portal endpoints
 │   │   └── insights.py             #   Admin analytics endpoint (UC-11)
 │   ├── utils/                      # Helpers
@@ -130,20 +130,20 @@ QuickSmartAid/
 | GET    | `/api/users?email={email}`            | Get user by email                          | Public       |
 | GET    | `/api/users/{userId}`                 | Get user by ID                             | Any role     |
 
-### Staff portal (`X-User-Email` header, role: staff/admin)
+### Agent portal (`X-User-Email` header, role: agent/admin)
 
 | Method | Endpoint                                      | Description                       |
 |--------|-----------------------------------------------|-----------------------------------|
-| GET    | `/api/staff/tickets`                          | View assigned tickets             |
-| PATCH  | `/api/staff/tickets/{ticketId}/status`        | Update ticket status              |
+| GET    | `/api/agent/tickets`                          | View assigned tickets             |
+| PATCH  | `/api/agent/tickets/{ticketId}/status`        | Update ticket status              |
 
 ### Admin portal (`X-User-Email` header, role: admin)
 
 | Method | Endpoint                                       | Description                            |
 |--------|------------------------------------------------|----------------------------------------|
 | GET    | `/api/manage/tickets`                          | View all tickets with filters          |
-| PATCH  | `/api/manage/tickets/{ticketId}/assign`        | Assign ticket to staff                 |
-| GET    | `/api/manage/staff`                            | List all staff members                 |
+| PATCH  | `/api/manage/tickets/{ticketId}/assign`        | Assign ticket to agent                 |
+| GET    | `/api/manage/agent`                            | List all agent members                 |
 | GET    | `/api/manage/users`                            | List all users                         |
 | PATCH  | `/api/manage/users/{userId}`                   | Update user role or display name       |
 | GET    | `/api/manage/insights?days=30`                 | Aggregated metrics for UC-11 dashboard |

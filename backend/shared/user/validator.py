@@ -5,7 +5,7 @@
 
 import re
 
-VALID_ROLES = ["student", "staff", "admin"]
+VALID_ROLES = ["user", "agent", "admin"]
 
 
 def validate_user(data: dict) -> list:
@@ -34,7 +34,7 @@ def validate_user(data: dict) -> list:
     if not re.match(email_pattern, data["email"]):
         errors.append("Invalid email format")
 
-    # Validate role (optional field, defaults to "student" in service layer)
+    # Validate role (optional field, defaults to "user" in service layer)
     role = data.get("role")
     if role and role not in VALID_ROLES:
         errors.append(

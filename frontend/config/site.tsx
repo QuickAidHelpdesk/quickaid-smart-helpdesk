@@ -76,7 +76,7 @@ export const siteConfig = {
       ],
     },
     {
-      title: "Staff",
+      title: "Agent",
       items: [
         {
           title: "Assigned Tickets",

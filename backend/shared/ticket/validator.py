@@ -146,7 +146,7 @@ def validate_assignment(data: dict) -> list:
     errors = []
 
     if "assigned_to" not in data or not str(data["assigned_to"]).strip():
-        errors.append("assigned_to (staff email) is required")
+        errors.append("assigned_to (agent email) is required")
         return errors
 
     email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'

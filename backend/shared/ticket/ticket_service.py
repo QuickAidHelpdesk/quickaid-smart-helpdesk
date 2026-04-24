@@ -145,7 +145,7 @@ def search_tickets(q: str) -> list:
     ))
 
 
-# FR-07-01: Get tickets assigned to a specific staff member.
+# FR-07-01: Get tickets assigned to a specific agent member.
 def get_tickets_by_assignee(email: str, filters: dict = {}) -> list:
     container = get_container(TICKETS_CONTAINER)
 
@@ -273,13 +273,13 @@ def update_ticket(ticket: dict, updates: dict) -> tuple[dict, dict]:
     return ticket, changes
 
 
-# FR-10-02, FR-10-03: Assign ticket to a staff member.
-def assign_ticket(ticket: dict, staff_user: dict) -> dict:
+# FR-10-02, FR-10-03: Assign ticket to a agent member.
+def assign_ticket(ticket: dict, agent_user: dict) -> dict:
     container = get_container(TICKETS_CONTAINER)
 
     old_status = ticket["status"]
-    ticket["assigned_to"] = staff_user["email"]
-    ticket["assigned_to_name"] = staff_user["display_name"]
+    ticket["assigned_to"] = agent_user["email"]
+    ticket["assigned_to_name"] = agent_user["display_name"]
     ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     # FR-10-03: Auto-change Open to In Progress on assignment
@@ -291,7 +291,7 @@ def assign_ticket(ticket: dict, staff_user: dict) -> dict:
     # Write status history if status changed
     if ticket["status"] != old_status:
         add_status_history(
-            ticket["ticket_id"], old_status, ticket["status"], staff_user["email"]
+            ticket["ticket_id"], old_status, ticket["status"], agent_user["email"]
         )
 
     return ticket

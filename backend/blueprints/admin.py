@@ -2,8 +2,8 @@
 Admin Blueprint — endpoints for admin portal (UC-10)
 API:
   GET   /api/manage/tickets                    - View all tickets with filters
-  PATCH /api/manage/tickets/{ticketId}/assign  - Assign ticket to staff
-  GET   /api/manage/staff                      - List all staff members
+  PATCH /api/manage/tickets/{ticketId}/assign  - Assign ticket to agent
+  GET   /api/manage/agent                      - List all agent members
   GET   /api/manage/users                      - List all users (for user management)
   PATCH /api/manage/users/{userId}             - Update user role and name
 
@@ -67,7 +67,7 @@ def get_admin_tickets(req: func.HttpRequest) -> func.HttpResponse:
 
 
 # ── PATCH /api/manage/tickets/{ticketId}/assign ───────────────────
-# FR-10-02: Assign ticket to a support staff member (admin only)
+# FR-10-02: Assign ticket to a support agent member (admin only)
 @bp.route(route="manage/tickets/{ticketId}/assign", methods=["PATCH", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def assign_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
@@ -101,25 +101,25 @@ def assign_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if not ticket:
         return error_response("Ticket not found.", 404)
 
-    # Verify the target staff member exists and has the right role
-    staff_email = data["assigned_to"].strip().lower()
+    # Verify the target agent member exists and has the right role
+    agent_email = data["assigned_to"].strip().lower()
     try:
-        staff_user = get_user_by_email(staff_email)
+        agent_user = get_user_by_email(agent_email)
     except Exception as e:
-        logger.error("Failed to look up staff user %s: %s", staff_email, e)
-        return error_response("Failed to verify staff member.", 500)
+        logger.error("Failed to look up agent user %s: %s", agent_email, e)
+        return error_response("Failed to verify agent member.", 500)
 
-    if not staff_user:
-        return error_response(f"Staff member '{staff_email}' not found.", 404)
+    if not agent_user:
+        return error_response(f"Agent member '{agent_email}' not found.", 404)
 
-    if staff_user.get("role") not in ["staff", "admin"]:
+    if agent_user.get("role") not in ["agent", "admin"]:
         return error_response(
-            f"User '{staff_email}' is not a staff member or admin.", 400
+            f"User '{agent_email}' is not a agent member or admin.", 400
         )
 
     # Assign the ticket
     try:
-        updated_ticket = assign_ticket(ticket, staff_user)
+        updated_ticket = assign_ticket(ticket, agent_user)
     except Exception as e:
         logger.error("Failed to assign ticket %s: %s", ticket_id, e)
         return error_response("Failed to assign ticket.", 500)
@@ -127,14 +127,14 @@ def assign_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     # FR-11-02: custom event for ticket assignment
     track_event("TicketAssigned", {
         "ticket_id": updated_ticket["ticket_id"],
-        "assigned_to": staff_user["email"],
+        "assigned_to": agent_user["email"],
         "assigned_by": user["email"],
     })
 
     # FR-09-01: Send assignment notification email (fire-and-forget)
     try:
         send_assignment_email(
-            to_email=staff_user["email"],
+            to_email=agent_user["email"],
             ticket_id=updated_ticket["ticket_id"],
             subject=updated_ticket["subject"],
         )
@@ -145,16 +145,16 @@ def assign_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         "success": True,
         "message": (
             f"Ticket {updated_ticket['ticket_id']} assigned to "
-            f"{staff_user['display_name']}."
+            f"{agent_user['display_name']}."
         ),
         "ticket": updated_ticket,
     })
 
 
-# ── GET /api/manage/staff ─────────────────────────────────────────
-# List all staff members (admin only, for ticket assignment UI)
-@bp.route(route="manage/staff", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def get_staff_list(req: func.HttpRequest) -> func.HttpResponse:
+# ── GET /api/manage/agent ─────────────────────────────────────────
+# List all agent members (admin only, for ticket assignment UI)
+@bp.route(route="manage/agent", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def get_agent_list(req: func.HttpRequest) -> func.HttpResponse:
 
     if req.method == "OPTIONS":
         return preflight_response()
@@ -165,12 +165,12 @@ def get_staff_list(req: func.HttpRequest) -> func.HttpResponse:
         return err
 
     try:
-        staff = get_users_by_role("staff")
-        return json_response({"staff": staff})
+        agent = get_users_by_role("agent")
+        return json_response({"agent": agent})
 
     except Exception as e:
-        logger.error("Failed to retrieve staff list: %s", e)
-        return error_response("Failed to retrieve staff list.", 500)
+        logger.error("Failed to retrieve agent list: %s", e)
+        return error_response("Failed to retrieve agent list.", 500)
 
 from shared.user.user_service import get_all_users
 

@@ -1,7 +1,7 @@
 """
 Email Service — sends transactional emails via Azure Communication Services.
 Handles: ticket confirmation (FR-03-01), status updates (FR-05-01),
-         and staff assignment notifications (FR-09-01).
+         and agent assignment notifications (FR-09-01).
 """
 
 import logging
@@ -191,11 +191,11 @@ def send_edit_confirmation_email(
     logger.info("Edit confirmation email sent to %s for ticket %s", to_email, ticket_id)
 
 
-# ── FR-09-01: Assignment notification to staff ─────────────────────
+# ── FR-09-01: Assignment notification to agent ─────────────────────
 def send_assignment_email(
     to_email: str, ticket_id: str, subject: str
 ) -> None:
-    """Send ticket assignment notification email to staff (FR-09-01)."""
+    """Send ticket assignment notification email to agent (FR-09-01)."""
 
     html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -215,7 +215,7 @@ def send_assignment_email(
                 </tr>
             </table>
             <p style="color: #6b7280; font-size: 14px;">
-                Please log in to the Staff Portal to review and manage this ticket.
+                Please log in to the Agent Portal to review and manage this ticket.
             </p>
         </div>
         <div style="padding: 12px; text-align: center; color: #9ca3af; font-size: 12px;">

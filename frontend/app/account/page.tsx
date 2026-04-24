@@ -126,8 +126,8 @@ export default function AccountPage() {
                     </SelectTrigger>
                     <SelectContent position="popper">
                       <SelectGroup>
-                        <SelectItem value="student">Student</SelectItem>
-                        <SelectItem value="staff">Staff</SelectItem>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="agent">Agent</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectGroup>
                     </SelectContent>

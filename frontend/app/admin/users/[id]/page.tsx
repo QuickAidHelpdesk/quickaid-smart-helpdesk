@@ -51,7 +51,7 @@ const formSchema = z.object({
     .string()
     .min(2, "Display name must be at least 2 characters.")
     .max(100, "Display name must not exceed 100 characters."),
-  role: z.enum(["student", "staff", "admin"]),
+  role: z.enum(["user", "agent", "admin"]),
 });
 
 export default function AdminEditUserPage({
@@ -73,7 +73,7 @@ export default function AdminEditUserPage({
     resolver: zodResolver(formSchema),
     defaultValues: {
       displayName: "",
-      role: "student",
+      role: "user",
     },
   });
 
@@ -221,8 +221,8 @@ export default function AdminEditUserPage({
                         </SelectTrigger>
                         <SelectContent position="popper">
                           <SelectGroup>
-                            <SelectItem value="student">Student</SelectItem>
-                            <SelectItem value="staff">Staff</SelectItem>
+                            <SelectItem value="user">User</SelectItem>
+                            <SelectItem value="agent">Agent</SelectItem>
                             <SelectItem value="admin">Admin</SelectItem>
                           </SelectGroup>
                         </SelectContent>

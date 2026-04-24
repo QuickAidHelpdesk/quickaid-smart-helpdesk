@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/auth-context";
@@ -63,7 +63,7 @@ export default function TeamsPage() {
   // Form states
   const [formData, setFormData] = useState({ name: "", category: "General Inquiry" });
   const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
-  const [allStaff, setAllStaff] = useState<User[]>([]);
+  const [allAgents, setallAgents] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -80,23 +80,23 @@ export default function TeamsPage() {
     }
   }, []);
 
-  const fetchStaff = useCallback(async () => {
+  const fetchAgents = useCallback(async () => {
     try {
-      // Fetch all staff and admins to be able to add them to teams
-      const res = await apiGet<{ users: User[] }>("/manage/users?role=staff");
+      // Fetch all agent and admins to be able to add them to teams
+      const res = await apiGet<{ users: User[] }>("/manage/users?role=agent");
       const resAdmin = await apiGet<{ users: User[] }>("/manage/users?role=admin");
-      setAllStaff([...(res.users || []), ...(resAdmin.users || [])]);
+      setallAgents([...(res.users || []), ...(resAdmin.users || [])]);
     } catch (err) {
-      console.error("Failed to fetch staff:", err);
+      console.error("Failed to fetch agent:", err);
     }
   }, []);
 
   useEffect(() => {
     if (user) {
       fetchTeams();
-      fetchStaff();
+      fetchAgents();
     }
-  }, [user, fetchTeams, fetchStaff]);
+  }, [user, fetchTeams, fetchAgents]);
 
   const handleCreateTeam = async () => {
     try {
@@ -341,7 +341,7 @@ export default function TeamsPage() {
             <div className="border rounded-md max-h-[200px] overflow-y-auto">
               <table className="w-full text-sm">
                 <tbody className="divide-y">
-                  {allStaff
+                  {allAgents
                     .filter(s => !teamUsers.some(tu => tu.user_id === s.user_id))
                     .map(s => (
                       <tr key={s.user_id}>

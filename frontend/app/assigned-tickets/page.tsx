@@ -23,7 +23,7 @@ export default function AssignedTicketsPage() {
     try {
       setLoading(true);
       setError(null);
-      let endpoint = "/staff/tickets";
+      let endpoint = "/agent/tickets";
       const queryParams = new URLSearchParams();
 
       if (searchQuery.trim() !== "")
@@ -88,7 +88,7 @@ export default function AssignedTicketsPage() {
 
           <TicketListCard
             title="Your Work Queue"
-            description="Tickets assigned to your staff account."
+            description="Tickets assigned to your agent account."
             tickets={tickets}
             loading={loading}
             searchQuery={searchQuery}

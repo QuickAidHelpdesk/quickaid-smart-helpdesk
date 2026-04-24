@@ -34,7 +34,7 @@ function getDashboardPath(role: string): string {
   switch (role) {
     case "admin":
       return "/dashboard";
-    case "staff":
+    case "agent":
       return "/dashboard";
     default:
       return "/dashboard";

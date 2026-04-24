@@ -1,8 +1,8 @@
 """
-Staff Blueprint — endpoints for support staff portal (UC-7, UC-8)
+Agent Blueprint — endpoints for support agent portal (UC-7, UC-8)
 API:
-  GET   /api/staff/tickets                    - View assigned tickets
-  PATCH /api/staff/tickets/{ticketId}/status  - Update ticket status
+  GET   /api/agent/tickets                    - View assigned tickets
+  PATCH /api/agent/tickets/{ticketId}/status  - Update ticket status
 """
 
 import logging
@@ -27,16 +27,16 @@ bp = func.Blueprint()
 logger = logging.getLogger(__name__)
 
 
-# ── GET /api/staff/tickets ─────────────────────────────────────────
-# FR-07-01: View tickets assigned to the logged-in staff member
-@bp.route(route="staff/tickets", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def get_staff_tickets(req: func.HttpRequest) -> func.HttpResponse:
+# ── GET /api/agent/tickets ─────────────────────────────────────────
+# FR-07-01: View tickets assigned to the logged-in agent member
+@bp.route(route="agent/tickets", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def get_agent_tickets(req: func.HttpRequest) -> func.HttpResponse:
 
     if req.method == "OPTIONS":
         return preflight_response()
 
-    # Role check: staff or admin
-    user, err = require_role(req, ["staff", "admin"])
+    # Role check: agent or admin
+    user, err = require_role(req, ["agent", "admin"])
     if err:
         return err
 
@@ -64,16 +64,16 @@ def get_staff_tickets(req: func.HttpRequest) -> func.HttpResponse:
         return error_response("Failed to retrieve assigned tickets.", 500)
 
 
-# ── PATCH /api/staff/tickets/{ticketId}/status ─────────────────────
-# FR-08-01: Update ticket status (staff updates their assigned tickets)
-@bp.route(route="staff/tickets/{ticketId}/status", methods=["PATCH", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+# ── PATCH /api/agent/tickets/{ticketId}/status ─────────────────────
+# FR-08-01: Update ticket status (agent updates their assigned tickets)
+@bp.route(route="agent/tickets/{ticketId}/status", methods=["PATCH", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def update_ticket_status_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     if req.method == "OPTIONS":
         return preflight_response()
 
-    # Role check: staff or admin
-    user, err = require_role(req, ["staff", "admin"])
+    # Role check: agent or admin
+    user, err = require_role(req, ["agent", "admin"])
     if err:
         return err
 
@@ -89,8 +89,8 @@ def update_ticket_status_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if not ticket:
         return error_response("Ticket not found.", 404)
 
-    # Staff can only update tickets assigned to them; admin can update any
-    if user["role"] == "staff" and ticket.get("assigned_to") != user["email"]:
+    # Agent can only update tickets assigned to them; admin can update any
+    if user["role"] == "agent" and ticket.get("assigned_to") != user["email"]:
         return error_response("You can only update tickets assigned to you.", 403)
 
     # Parse and validate request body

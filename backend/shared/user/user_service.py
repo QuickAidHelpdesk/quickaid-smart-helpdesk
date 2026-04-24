@@ -21,7 +21,7 @@ def create_user(data: dict) -> dict:
         "user_id": user_id,
         "display_name": data["display_name"].strip(),
         "email": data["email"].strip().lower(),
-        "role": data.get("role", "student"),
+        "role": data.get("role", "user"),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }

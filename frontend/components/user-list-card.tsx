@@ -58,9 +58,9 @@ export function UserListCard({
     switch (role.toLowerCase()) {
       case "admin":
         return "destructive";
-      case "staff":
+      case "agent":
         return "secondary";
-      case "student":
+      case "user":
         return "default";
       default:
         return "default";
@@ -98,8 +98,8 @@ export function UserListCard({
               <SelectContent position="popper">
                 <SelectGroup>
                   <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="agent">Agent</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectGroup>
               </SelectContent>

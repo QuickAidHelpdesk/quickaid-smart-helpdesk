@@ -10,8 +10,8 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 | Role | Access Level |
 |------|-------------|
-| student | Tickets (own), Users |
-| staff | Staff portal + student access |
+| user | Tickets (own), Users |
+| agent | Agent portal + user access |
 | admin | Admin portal + all access |
 
 ---
@@ -35,8 +35,8 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 ```json
 {
-  "display_name": "Test Student",
-  "email": "teststudent@example.com"
+  "display_name": "Test User",
+  "email": "testuser@example.com"
 }
 ```
 
@@ -45,7 +45,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 ```json
 {
   "success": true,
-  "user": { "display_name": "Test Student", "email": "teststudent@example.com", "role": "student" }
+  "user": { "display_name": "Test User", "email": "testuser@example.com", "role": "user" }
 }
 ```
 
@@ -64,7 +64,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 | Name | Value |
 |------|-------|
-| email | teststudent@example.com |
+| email | testuser@example.com |
 
 **Headers**: None required
 
@@ -72,7 +72,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 ```json
 {
-  "user": { "display_name": "Test Student", "email": "teststudent@example.com", "role": "student" }
+  "user": { "display_name": "Test User", "email": "testuser@example.com", "role": "user" }
 }
 ```
 
@@ -95,17 +95,17 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 | Name | Value |
 |------|-------|
-| X-User-Email | teststudent@example.com |
+| X-User-Email | testuser@example.com |
 
 **Expected Response** (200):
 
 ```json
 {
-  "user": { "id": "...", "display_name": "Test Student", "email": "teststudent@example.com" }
+  "user": { "id": "...", "display_name": "Test User", "email": "testuser@example.com" }
 }
 ```
 
-> Protected — requires any role (student/staff/admin).
+> Protected — requires any role (user/agent/admin).
 
 ---
 
@@ -123,7 +123,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 | Name | Value |
 |------|-------|
 | Content-Type | application/json |
-| X-User-Email | teststudent@example.com |
+| X-User-Email | testuser@example.com |
 
 **Body (Raw)**:
 
@@ -133,7 +133,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
   "description": "I am unable to connect to the campus WiFi network in the main library building since this morning.",
   "category": "IT Support",
   "priority": "High",
-  "email": "teststudent@example.com"
+  "email": "testuser@example.com"
 }
 ```
 
@@ -147,7 +147,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 {
   "success": true,
   "ticket_id": "TIK-XXXXX",
-  "message": "Ticket submitted! Your ID is TIK-XXXXX. Confirmation sent to teststudent@example.com.",
+  "message": "Ticket submitted! Your ID is TIK-XXXXX. Confirmation sent to testuser@example.com.",
   "ticket": { ... }
 }
 ```
@@ -167,7 +167,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 | Name | Value |
 |------|-------|
-| X-User-Email | teststudent@example.com |
+| X-User-Email | testuser@example.com |
 
 **Query Parameters** (optional):
 
@@ -197,7 +197,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 | Name | Value |
 |------|-------|
-| X-User-Email | teststudent@example.com |
+| X-User-Email | testuser@example.com |
 
 **Query Parameters**:
 
@@ -232,7 +232,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 | Name | Value |
 |------|-------|
-| X-User-Email | teststudent@example.com |
+| X-User-Email | testuser@example.com |
 
 **Expected Response** (200):
 
@@ -247,20 +247,20 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 ---
 
-## 3. Staff Blueprint (Role: staff or admin)
+## 3. Agent Blueprint (Role: agent or admin)
 
-### 3.1 GET `/api/staff/tickets` — View assigned tickets
+### 3.1 GET `/api/agent/tickets` — View assigned tickets
 
 | Field | Value |
 |-------|-------|
 | Method | GET |
-| URL | `/api/staff/tickets` |
+| URL | `/api/agent/tickets` |
 
 **Headers**:
 
 | Name | Value |
 |------|-------|
-| X-User-Email | staffmember@example.com |
+| X-User-Email | agentmember@example.com |
 
 **Query Parameters** (optional):
 
@@ -273,33 +273,33 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 ```json
 {
-  "tickets": [ { "ticket_id": "TIK-XXXXX", "assigned_to": "staffmember@example.com", ... } ]
+  "tickets": [ { "ticket_id": "TIK-XXXXX", "assigned_to": "agentmember@example.com", ... } ]
 }
 ```
 
-> Returns **403** if the user's role is `student`.
+> Returns **403** if the user's role is `user`.
 
 ---
 
-### 3.2 PATCH `/api/staff/tickets/{ticketId}/status` — Update ticket status
+### 3.2 PATCH `/api/agent/tickets/{ticketId}/status` — Update ticket status
 
 | Field | Value |
 |-------|-------|
 | Method | PATCH |
-| URL | `/api/staff/tickets/{ticketId}/status` |
+| URL | `/api/agent/tickets/{ticketId}/status` |
 
 **Template Parameters**:
 
 | Name | Value |
 |------|-------|
-| ticketId | (a ticket ID assigned to this staff member) |
+| ticketId | (a ticket ID assigned to this agent member) |
 
 **Headers**:
 
 | Name | Value |
 |------|-------|
 | Content-Type | application/json |
-| X-User-Email | staffmember@example.com |
+| X-User-Email | agentmember@example.com |
 
 **Body (Raw)**:
 
@@ -331,7 +331,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 **Email Triggered**: Status update email sent to the ticket submitter.
 
-> Staff can only update tickets assigned to them. Admins can update any ticket.
+> Agent can only update tickets assigned to them. Admins can update any ticket.
 
 ---
 
@@ -372,7 +372,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 ---
 
-### 4.2 PATCH `/api/manage/tickets/{ticketId}/assign` — Assign ticket to staff
+### 4.2 PATCH `/api/manage/tickets/{ticketId}/assign` — Assign ticket to agent
 
 | Field | Value |
 |-------|-------|
@@ -396,7 +396,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 ```json
 {
-  "assigned_to": "staffmember@example.com"
+  "assigned_to": "agentmember@example.com"
 }
 ```
 
@@ -405,23 +405,23 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 ```json
 {
   "success": true,
-  "message": "Ticket TIK-XXXXX assigned to Staff Member.",
+  "message": "Ticket TIK-XXXXX assigned to Agent Member.",
   "ticket": { ... }
 }
 ```
 
-**Email Triggered**: Assignment notification email sent to the staff member (`assigned_to`).
+**Email Triggered**: Assignment notification email sent to the agent member (`assigned_to`).
 
-> The `assigned_to` email must belong to a user with role `staff` or `admin` in the database.
+> The `assigned_to` email must belong to a user with role `agent` or `admin` in the database.
 
 ---
 
-### 4.3 GET `/api/manage/staff` — List all staff members
+### 4.3 GET `/api/manage/agent` — List all agent members
 
 | Field | Value |
 |-------|-------|
 | Method | GET |
-| URL | `/api/manage/staff` |
+| URL | `/api/manage/agent` |
 
 **Headers**:
 
@@ -433,7 +433,7 @@ All protected endpoints require the `X-User-Email` header. The backend looks up 
 
 ```json
 {
-  "staff": [ { "display_name": "Staff Member", "email": "staffmember@example.com", "role": "staff" }, ... ]
+  "agent": [ { "display_name": "Agent Member", "email": "agentmember@example.com", "role": "agent" }, ... ]
 }
 ```
 
@@ -459,7 +459,7 @@ Emails are **not** separate endpoints. They fire automatically as side effects o
 
 ### 5.2 Status Update Email (FR-05-01)
 
-| Trigger | `PATCH /api/staff/tickets/{ticketId}/status` |
+| Trigger | `PATCH /api/agent/tickets/{ticketId}/status` |
 |---------|----------------------------------------------|
 | Sent To | The original ticket submitter's email |
 | Subject | `[TIK-XXXXX] Status Updated — (new status)` |
@@ -473,11 +473,11 @@ Emails are **not** separate endpoints. They fire automatically as side effects o
 
 | Trigger | `PATCH /api/manage/tickets/{ticketId}/assign` |
 |---------|-----------------------------------------------|
-| Sent To | The staff member being assigned (`assigned_to`) |
+| Sent To | The agent member being assigned (`assigned_to`) |
 | Subject | `[TIK-XXXXX] Ticket Assigned — (ticket subject)` |
 | Contains | Ticket ID, Subject |
 
-**How to test**: Assign a ticket to a staff member with a real email and check their inbox.
+**How to test**: Assign a ticket to a agent member with a real email and check their inbox.
 
 ---
 
@@ -505,7 +505,7 @@ Emails are **not** separate endpoints. They fire automatically as side effects o
 | 6 | `GET /api/tickets/{ticketId}` | Get the ticket you just created |
 | 7 | `GET /api/tickets/search?q=WiFi` | Search for the ticket |
 | 8 | `GET /api/manage/tickets` | View all tickets as admin |
-| 9 | `GET /api/manage/staff` | List available staff |
-| 10 | `PATCH /api/manage/tickets/{ticketId}/assign` | Assign ticket to staff + verify **assignment email** |
-| 11 | `GET /api/staff/tickets` | View assigned tickets as staff |
-| 12 | `PATCH /api/staff/tickets/{ticketId}/status` | Update status to "In Progress" + verify **status update email** |
+| 9 | `GET /api/manage/agent` | List available agent |
+| 10 | `PATCH /api/manage/tickets/{ticketId}/assign` | Assign ticket to agent + verify **assignment email** |
+| 11 | `GET /api/agent/tickets` | View assigned tickets as agent |
+| 12 | `PATCH /api/agent/tickets/{ticketId}/status` | Update status to "In Progress" + verify **status update email** |

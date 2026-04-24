@@ -44,7 +44,7 @@ def submit_ticket(req: func.HttpRequest) -> func.HttpResponse:
         return preflight_response()
 
     # Auth check: any logged-in user can submit tickets
-    user, err = require_role(req, ["student", "staff", "admin"])
+    user, err = require_role(req, ["user", "agent", "admin"])
     if err:
         return err
 
@@ -116,7 +116,7 @@ def get_tickets_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         return preflight_response()
 
     # Auth check: any logged-in user can view their own tickets
-    user, err = require_role(req, ["student", "staff", "admin"])
+    user, err = require_role(req, ["user", "agent", "admin"])
     if err:
         return err
 
@@ -155,7 +155,7 @@ def search_tickets_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         return preflight_response()
 
     # Auth check: any logged-in user can search tickets
-    user, err = require_role(req, ["student", "staff", "admin"])
+    user, err = require_role(req, ["user", "agent", "admin"])
     if err:
         return err
 
@@ -188,7 +188,7 @@ def ticket_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return preflight_response()
 
-    user, err = require_role(req, ["student", "staff", "admin"])
+    user, err = require_role(req, ["user", "agent", "admin"])
     if err:
         return err
 

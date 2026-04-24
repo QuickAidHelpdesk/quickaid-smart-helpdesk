@@ -94,7 +94,7 @@ def get_user_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         return preflight_response()
 
     # Auth check: any logged-in user can look up user by ID
-    user, err = require_role(req, ["student", "staff", "admin"])
+    user, err = require_role(req, ["user", "agent", "admin"])
     if err:
         return err
 
