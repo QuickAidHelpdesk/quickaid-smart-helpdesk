@@ -47,13 +47,13 @@ export function NavSecondary({
           ))}
           <SidebarMenuItem>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton tooltip="Theme">
+              <SidebarMenuButton asChild tooltip="Theme">
+                <DropdownMenuTrigger>
                   <Sun className="dark:hidden" />
                   <Moon className="hidden dark:block" />
                   <span>Theme</span>
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
+                </DropdownMenuTrigger>
+              </SidebarMenuButton>
               <DropdownMenuContent side="right" align="start">
                 <DropdownMenuItem onClick={() => setTheme("light")}>
                   Light
