@@ -8,6 +8,7 @@ import {
   addUserToTeam,
   removeUserFromTeam,
   apiGet,
+  getTeams,
 } from "@/lib/api";
 import { TeamUser } from "@/types/team";
 import { User } from "@/types/user";
@@ -40,17 +41,23 @@ export default function ManageTeamUsersPage({
   const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
   const [allAgents, setallAgents] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teamName, setTeamName] = useState<string>("");
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [teamRes, agentsRes, adminsRes] = await Promise.all([
+      const [teamRes, agentsRes, adminsRes, teamsRes] = await Promise.all([
         getTeamUsers(teamId),
         apiGet<{ users: User[] }>("/manage/users?role=agent"),
         apiGet<{ users: User[] }>("/manage/users?role=admin"),
+        getTeams(),
       ]);
       setTeamUsers(teamRes.users);
       setallAgents([...(agentsRes.users || []), ...(adminsRes.users || [])]);
+      const currentTeam = teamsRes.teams.find((t) => t.id === teamId);
+      if (currentTeam) {
+        setTeamName(currentTeam.name);
+      }
     } catch (err: any) {
       toast.error("Failed to load users data");
     } finally {
@@ -110,7 +117,7 @@ export default function ManageTeamUsersPage({
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>{teamId}</BreadcrumbPage>
+                <BreadcrumbPage>{teamName || teamId}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
