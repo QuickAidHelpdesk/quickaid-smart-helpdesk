@@ -42,3 +42,50 @@ def validate_user(data: dict) -> list:
         )
 
     return errors
+
+
+def _validate_password(password: str) -> list:
+    errors = []
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters")
+    if len(password) > 128:
+        errors.append("Password must not exceed 128 characters")
+    if not re.search(r"[A-Za-z]", password):
+        errors.append("Password must contain at least one letter")
+    if not re.search(r"\d", password):
+        errors.append("Password must contain at least one number")
+    return errors
+
+
+def validate_password_registration(data: dict) -> list:
+    errors = []
+
+    for field in ["display_name", "email", "password"]:
+        if field not in data or not str(data[field]).strip():
+            errors.append(f"{field} is required")
+    if errors:
+        return errors
+
+    errors.extend(validate_user({
+        "display_name": data["display_name"],
+        "email": data["email"],
+    }))
+
+    errors.extend(_validate_password(data["password"]))
+
+    return errors
+
+
+def validate_password_login(data: dict) -> list:
+    errors = []
+    for field in ["email", "password"]:
+        if field not in data or not str(data[field]).strip():
+            errors.append(f"{field} is required")
+    if errors:
+        return errors
+
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, data["email"]):
+        errors.append("Invalid email format")
+
+    return errors

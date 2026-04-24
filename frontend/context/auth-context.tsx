@@ -54,6 +54,12 @@ interface AuthContextType {
   login: () => Promise<void>;
   logout: () => void;
   completeRegistration: (displayName: string, role: string) => Promise<void>;
+  loginWithPassword: (email: string, password: string) => Promise<void>;
+  registerWithPassword: (
+    email: string,
+    password: string,
+    displayName: string,
+  ) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -63,6 +69,8 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   logout: () => {},
   completeRegistration: async () => {},
+  loginWithPassword: async () => {},
+  registerWithPassword: async () => {},
 });
 
 function AuthProviderInner({ children }: { children: ReactNode }) {
@@ -153,13 +161,19 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     await instance.loginRedirect(loginRequest);
   }, [instance, inProgress]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     setUser(null);
     setPendingUser(null);
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(PENDING_KEY);
     clearSessionCookie();
-    instance.logoutRedirect({ postLogoutRedirectUri: "/login" });
+    try {
+      await instance.clearCache();
+      instance.setActiveAccount(null);
+    } catch {
+      // ignore — we'll navigate regardless
+    }
+    window.location.href = "/login";
   }, [instance]);
 
   const completeRegistration = useCallback(
@@ -187,9 +201,50 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     [pendingUser]
   );
 
+  const loginWithPassword = useCallback(
+    async (email: string, password: string) => {
+      const res = await apiPost<{ success: boolean; user: User }>(
+        "/auth/login",
+        { email: email.trim().toLowerCase(), password },
+      );
+      setUser(res.user);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(res.user));
+      setSessionCookie(res.user.email);
+      window.location.href = getDashboardPath(res.user.role);
+    },
+    [],
+  );
+
+  const registerWithPassword = useCallback(
+    async (email: string, password: string, displayName: string) => {
+      const res = await apiPost<{ success: boolean; user: User }>(
+        "/auth/register",
+        {
+          email: email.trim().toLowerCase(),
+          password,
+          display_name: displayName.trim(),
+        },
+      );
+      setUser(res.user);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(res.user));
+      setSessionCookie(res.user.email);
+      window.location.href = getDashboardPath(res.user.role);
+    },
+    [],
+  );
+
   return (
     <AuthContext.Provider
-      value={{ user, pendingUser, isLoading, login, logout, completeRegistration }}
+      value={{
+        user,
+        pendingUser,
+        isLoading,
+        login,
+        logout,
+        completeRegistration,
+        loginWithPassword,
+        registerWithPassword,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -13,6 +13,7 @@ from shared.user.user_service import (
     upsert_user,
     get_user_by_email,
     get_user_by_id,
+    public_user,
 )
 from shared.user.validator import validate_user
 from utils.auth import require_role
@@ -54,7 +55,7 @@ def user_login(req: func.HttpRequest) -> func.HttpResponse:
 
     return json_response({
         "success": True,
-        "user": user,
+        "user": public_user(user),
     })
 
 
@@ -77,7 +78,7 @@ def get_user_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         if not user:
             return error_response("User not found.", 404)
 
-        return json_response({"user": user})
+        return json_response({"user": public_user(user)})
 
     except Exception as e:
         logger.error("Failed to retrieve user for %s: %s", email, e)
@@ -106,7 +107,7 @@ def get_user_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         if not user:
             return error_response("User not found.", 404)
 
-        return json_response({"user": user})
+        return json_response({"user": public_user(user)})
 
     except Exception as e:
         logger.error("Failed to retrieve user %s: %s", user_id, e)

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
-import { apiGet } from "@/lib/api";
-import { UserListCard } from "@/components/user-list-card";
+import { apiGet, apiPatch } from "@/lib/api";
+import { UserListCard, TeamSummary } from "@/components/user-list-card";
 import { User } from "@/types/user";
 
 import { ErrorState } from "@/components/error-state";
@@ -17,6 +18,12 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [error, setError] = useState<string | null>(null);
+  const [updatingUserIds, setUpdatingUserIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [teamById, setTeamById] = useState<Map<string, TeamSummary>>(
+    new Map(),
+  );
 
   const fetchUsers = useCallback(async () => {
     if (!user) return;
@@ -56,11 +63,85 @@ export default function UsersPage() {
   }, [searchQuery, roleFilter, user]);
 
   useEffect(() => {
-    if (user) {
-      fetchUsers();
-    }
+    if (!user) return;
+    fetchUsers();
+    apiGet<{ teams: { team_id: string; name: string; category: string }[] }>(
+      "/manage/teams",
+    )
+      .then((res) => {
+        const map = new Map<string, TeamSummary>();
+        for (const t of res.teams || []) {
+          map.set(t.team_id, { name: t.name, category: t.category });
+        }
+        setTeamById(map);
+      })
+      .catch(() => {
+        // Non-fatal: Team column simply renders "Unassigned" for agents.
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const handleTeamChange = useCallback(
+    async (userId: string, newTeamId: string | null) => {
+      const target = users.find((u) => u.user_id === userId);
+      if (!target) return;
+      if ((target.team_id || null) === newTeamId) return;
+
+      setUpdatingUserIds((prev) => new Set(prev).add(userId));
+      try {
+        const res = await apiPatch<{ success: boolean; user: User }>(
+          `/manage/users/${userId}`,
+          { team_id: newTeamId },
+        );
+        setUsers((prev) =>
+          prev.map((u) => (u.user_id === userId ? res.user : u)),
+        );
+        const teamLabel = newTeamId
+          ? teamById.get(newTeamId)?.name || "selected team"
+          : "Unassigned";
+        toast.success(`Moved ${target.display_name} to ${teamLabel}.`);
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to update team.");
+      } finally {
+        setUpdatingUserIds((prev) => {
+          const next = new Set(prev);
+          next.delete(userId);
+          return next;
+        });
+      }
+    },
+    [users, teamById],
+  );
+
+  const handleRoleChange = useCallback(
+    async (userId: string, newRole: User["role"]) => {
+      const target = users.find((u) => u.user_id === userId);
+      if (!target || target.role === newRole) return;
+
+      setUpdatingUserIds((prev) => new Set(prev).add(userId));
+      try {
+        const res = await apiPatch<{ success: boolean; user: User }>(
+          `/manage/users/${userId}`,
+          { role: newRole },
+        );
+        setUsers((prev) =>
+          prev.map((u) => (u.user_id === userId ? res.user : u)),
+        );
+        toast.success(
+          `Updated ${target.display_name}'s role to ${newRole}.`,
+        );
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to update role.");
+      } finally {
+        setUpdatingUserIds((prev) => {
+          const next = new Set(prev);
+          next.delete(userId);
+          return next;
+        });
+      }
+    },
+    [users],
+  );
 
   if (initialLoad) {
     return (
@@ -93,6 +174,10 @@ export default function UsersPage() {
             roleFilter={roleFilter}
             setRoleFilter={setRoleFilter}
             onSearch={fetchUsers}
+            onRoleChange={handleRoleChange}
+            onTeamChange={handleTeamChange}
+            updatingUserIds={updatingUserIds}
+            teamById={teamById}
           />
         </>
       )}

@@ -10,6 +10,7 @@ from blueprints.staff import bp as staff_bp
 from blueprints.admin import bp as admin_bp
 from blueprints.insights import bp as insights_bp
 from blueprints.teams import bp as teams_bp
+from blueprints.auth import bp as auth_bp
 
 app = func.FunctionApp()
 
@@ -19,3 +20,4 @@ app.register_functions(staff_bp)
 app.register_functions(admin_bp)
 app.register_functions(insights_bp)
 app.register_functions(teams_bp)
+app.register_functions(auth_bp)

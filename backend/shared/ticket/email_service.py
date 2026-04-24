@@ -226,3 +226,54 @@ def send_assignment_email(
 
     _send_email(to_email, f"[{ticket_id}] Ticket Assigned — {subject}", html)
     logger.info("Assignment email sent to %s for ticket %s", to_email, ticket_id)
+
+
+# ── Reassignment notification to the new team member ──────────────
+def send_reassignment_email(
+    to_email: str,
+    ticket_id: str,
+    subject: str,
+    previous_assignee_name: str,
+    new_assignee_name: str,
+    transferred_by_name: str,
+) -> None:
+    """Notify a team member that a ticket has been transferred to them."""
+
+    previous_row = previous_assignee_name or "Unassigned"
+
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #1e40af; color: white; padding: 20px; text-align: center;">
+            <h1 style="margin: 0; font-size: 22px;">QuickAid — Ticket Transferred to You</h1>
+        </div>
+        <div style="padding: 24px; background: #f9fafb; border: 1px solid #e5e7eb;">
+            <p>Hi {new_assignee_name}, a ticket has been transferred to you by {transferred_by_name}.</p>
+            <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                <tr>
+                    <td style="padding: 8px 12px; font-weight: bold; background: #e5e7eb;">Ticket ID</td>
+                    <td style="padding: 8px 12px; background: #ffffff;">{ticket_id}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 12px; font-weight: bold; background: #e5e7eb;">Subject</td>
+                    <td style="padding: 8px 12px; background: #ffffff;">{subject}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 12px; font-weight: bold; background: #e5e7eb;">Previously with</td>
+                    <td style="padding: 8px 12px; background: #ffffff;">{previous_row}</td>
+                </tr>
+            </table>
+            <p style="color: #6b7280; font-size: 14px;">
+                Please log in to the Staff Portal to continue working on this ticket.
+            </p>
+        </div>
+        <div style="padding: 12px; text-align: center; color: #9ca3af; font-size: 12px;">
+            QuickAid Smart Campus Helpdesk
+        </div>
+    </div>
+    """
+
+    _send_email(to_email, f"[{ticket_id}] Ticket Transferred — {subject}", html)
+    logger.info(
+        "Reassignment email sent to %s for ticket %s (from %s to %s)",
+        to_email, ticket_id, previous_row, new_assignee_name,
+    )

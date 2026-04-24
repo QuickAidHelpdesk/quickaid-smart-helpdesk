@@ -28,8 +28,8 @@ import {
 
 export const siteConfig = {
   // Paths
-  publicPaths: ["/", "/404", "/login", "/logout", "/register"],
-  wrapperDisabledPaths: ["/", "/404", "/login", "/logout", "/register"],
+  publicPaths: ["/", "/404", "/login", "/logout", "/register", "/signup"],
+  wrapperDisabledPaths: ["/", "/404", "/login", "/logout", "/register", "/signup"],
 
   // Branding
   company: {
@@ -89,13 +89,18 @@ export const siteConfig = {
       title: "Management",
       items: [
         {
+          title: "Manage Tickets",
+          url: "/manage/tickets",
+          icon: <ListIcon />,
+        },
+        {
           title: "Users",
           url: "/users",
           icon: <UsersIcon />,
         },
         {
           title: "Agents & Teams",
-          url: "/staff",
+          url: "/team",
           icon: <BuildingIcon />,
         },
         {

@@ -11,7 +11,7 @@ from utils.cosmos_client import get_container, USERS_CONTAINER
 
 # %% Create (C) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Create user document and save to Cosmos DB.
-def create_user(data: dict) -> dict:
+def create_user(data: dict, password_hash: str | None = None) -> dict:
     container = get_container(USERS_CONTAINER)
 
     user_id = data.get("user_id") or str(uuid.uuid4())
@@ -28,8 +28,30 @@ def create_user(data: dict) -> dict:
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 
+    if password_hash:
+        user["password_hash"] = password_hash
+
     container.create_item(body=user)
     return user
+
+
+# Set or update the password hash on an existing user.
+def set_user_password(user_id: str, password_hash: str) -> dict | None:
+    container = get_container(USERS_CONTAINER)
+    existing = get_user_by_id(user_id)
+    if not existing:
+        return None
+    existing["password_hash"] = password_hash
+    existing["updated_at"] = datetime.now(timezone.utc).isoformat()
+    container.upsert_item(body=existing)
+    return existing
+
+
+# Strip sensitive fields (password_hash) before returning user to client.
+def public_user(user: dict | None) -> dict | None:
+    if not user:
+        return user
+    return {k: v for k, v in user.items() if k != "password_hash"}
 
 
 # %% Read (R) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -91,6 +113,33 @@ def upsert_user(data: dict) -> dict:
 
     # Create new user
     return create_user(data)
+
+
+# Get all non-student users belonging to a team (ticket-handlers in a given team_id).
+def list_users_by_team_id(team_id: str, roles: list[str] | None = None) -> list:
+    container = get_container(USERS_CONTAINER)
+
+    query = (
+        "SELECT c.user_id, c.display_name, c.email, c.role, c.team_id "
+        "FROM c WHERE c.team_id = @team_id"
+    )
+    params = [{"name": "@team_id", "value": team_id}]
+
+    if roles:
+        placeholders = []
+        for i, r in enumerate(roles):
+            key = f"@role{i}"
+            placeholders.append(key)
+            params.append({"name": key, "value": r})
+        query += f" AND c.role IN ({', '.join(placeholders)})"
+
+    query += " ORDER BY c.display_name"
+
+    return list(container.query_items(
+        query=query,
+        parameters=params,
+        enable_cross_partition_query=True,
+    ))
 
 
 # Get all users with a specific role.

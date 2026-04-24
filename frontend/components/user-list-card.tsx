@@ -28,6 +28,12 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import { User } from "@/types/user";
+import { VALID_ROLES } from "@/config/enums";
+
+export interface TeamSummary {
+  name: string;
+  category: string;
+}
 
 interface UserListCardProps {
   title: string;
@@ -40,6 +46,13 @@ interface UserListCardProps {
   setRoleFilter: (val: string) => void;
   onSearch: () => void;
   actionButton?: React.ReactNode;
+  onRoleChange?: (userId: string, newRole: User["role"]) => void | Promise<void>;
+  onTeamChange?: (
+    userId: string,
+    newTeamId: string | null,
+  ) => void | Promise<void>;
+  updatingUserIds?: Set<string>;
+  teamById?: Map<string, TeamSummary>;
 }
 
 export function UserListCard({
@@ -53,21 +66,29 @@ export function UserListCard({
   setRoleFilter,
   onSearch,
   actionButton,
+  onRoleChange,
+  onTeamChange,
+  updatingUserIds,
+  teamById,
 }: UserListCardProps) {
-  const getRoleColor = (role: string) => {
-    switch (role.toLowerCase()) {
-      case "admin":
-        return "destructive";
-      case "agent":
-        return "outline";
-      case "staff":
-        return "secondary";
-      case "student":
-        return "default";
-      default:
-        return "default";
-    }
+  const teamOptions = teamById
+    ? Array.from(teamById.entries())
+        .map(([team_id, t]) => ({ team_id, ...t }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    : [];
+  const roleColorClass: Record<string, string> = {
+    admin:
+      "bg-red-100 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-900",
+    agent:
+      "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-900",
+    staff:
+      "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900",
+    student:
+      "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-900",
   };
+
+  const getRoleColorClass = (role: string) =>
+    roleColorClass[role.toLowerCase()] ?? "";
 
   return (
     <Card>
@@ -120,6 +141,7 @@ export function UserListCard({
                 <TableHead className="text-left pl-4">User</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
+                <TableHead>Team</TableHead>
                 <TableHead>Date Joined</TableHead>
                 <TableHead className="text-right pr-4">Action</TableHead>
               </TableRow>
@@ -127,21 +149,26 @@ export function UserListCard({
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
                   </TableCell>
                 </TableRow>
               ) : users.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="h-24 text-center text-muted-foreground"
                   >
                     No users found.
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map((user) => (
+                users.map((user) => {
+                  const team =
+                    user.role === "agent" && user.team_id
+                      ? teamById?.get(user.team_id)
+                      : undefined;
+                  return (
                   <TableRow key={user.user_id}>
                     <TableCell className="font-medium pl-4 py-3">
                       {user.display_name}
@@ -150,12 +177,126 @@ export function UserListCard({
                       {user.email}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={getRoleColor(user.role as string)}
-                        className="capitalize"
-                      >
-                        {user.role}
-                      </Badge>
+                      {onRoleChange ? (
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={user.role}
+                            disabled={updatingUserIds?.has(user.user_id)}
+                            onValueChange={(val) =>
+                              onRoleChange(
+                                user.user_id,
+                                val as User["role"],
+                              )
+                            }
+                          >
+                            <SelectTrigger
+                              className={`w-32 capitalize font-medium ${getRoleColorClass(user.role)}`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent position="popper">
+                              <SelectGroup>
+                                {VALID_ROLES.map((r) => (
+                                  <SelectItem
+                                    key={r}
+                                    value={r}
+                                    className={`capitalize font-medium my-0.5 ${getRoleColorClass(r)}`}
+                                  >
+                                    {r}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                          {updatingUserIds?.has(user.user_id) && (
+                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className={`capitalize ${getRoleColorClass(user.role as string)}`}
+                        >
+                          {user.role}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {user.role === "agent" ? (
+                        onTeamChange ? (
+                          <div className="flex items-center gap-2">
+                            <Select
+                              value={user.team_id || "none"}
+                              disabled={updatingUserIds?.has(user.user_id)}
+                              onValueChange={(val) =>
+                                onTeamChange(
+                                  user.user_id,
+                                  val === "none" ? null : val,
+                                )
+                              }
+                            >
+                              <SelectTrigger className="w-48">
+                                <SelectValue placeholder="Select team">
+                                  {team ? (
+                                    <div className="flex flex-col leading-tight text-left">
+                                      <span className="font-medium">
+                                        {team.name}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {team.category}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="italic text-muted-foreground">
+                                      Unassigned
+                                    </span>
+                                  )}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent position="popper">
+                                <SelectGroup>
+                                  <SelectItem value="none">
+                                    <span className="italic text-muted-foreground">
+                                      Unassigned
+                                    </span>
+                                  </SelectItem>
+                                  {teamOptions.map((t) => (
+                                    <SelectItem
+                                      key={t.team_id}
+                                      value={t.team_id}
+                                    >
+                                      <div className="flex flex-col leading-tight">
+                                        <span className="font-medium">
+                                          {t.name}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                          {t.category}
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                            {updatingUserIds?.has(user.user_id) && (
+                              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                            )}
+                          </div>
+                        ) : team ? (
+                          <div className="flex flex-col leading-tight">
+                            <span className="font-medium">{team.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {team.category}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="italic text-muted-foreground text-sm">
+                            Unassigned
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground whitespace-nowrap">
                       {format(
@@ -171,7 +312,8 @@ export function UserListCard({
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>

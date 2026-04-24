@@ -304,6 +304,32 @@ def assign_ticket(ticket: dict, staff_user: dict) -> dict:
     return ticket
 
 
+# Reassign a ticket within a team (staff/agent → staff/agent).
+# Unlike assign_ticket, does not force Open → In Progress (ticket is mid-flight).
+def reassign_ticket(ticket: dict, new_assignee: dict, changed_by_email: str) -> dict:
+    container = get_container(TICKETS_CONTAINER)
+
+    previous_assignee_name = ticket.get("assigned_to_name") or "Unassigned"
+    new_assignee_name = new_assignee["display_name"]
+
+    ticket["assigned_to"] = new_assignee["email"]
+    ticket["assigned_to_name"] = new_assignee_name
+    ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    container.upsert_item(body=ticket)
+
+    # Record the transfer in status_history as an annotation (no status change).
+    add_reassignment_history(
+        ticket["ticket_id"],
+        ticket["status"],
+        previous_assignee_name,
+        new_assignee_name,
+        changed_by_email,
+    )
+
+    return ticket
+
+
 # Write a status change record to the status_history container (best-effort).
 def add_status_history(
     ticket_id: str, old_status: str, new_status: str, changed_by: str
@@ -331,4 +357,39 @@ def add_status_history(
     except Exception as e:
         logger.error(
             "Failed to write status history for ticket %s: %s", ticket_id, e
+        )
+
+
+# Record a within-team reassignment in status_history (status unchanged).
+def add_reassignment_history(
+    ticket_id: str,
+    current_status: str,
+    previous_assignee_name: str,
+    new_assignee_name: str,
+    changed_by: str,
+) -> None:
+    import uuid
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        container = get_container(STATUS_HISTORY_CONTAINER)
+        history_id = str(uuid.uuid4())
+
+        record = {
+            "id": history_id,
+            "history_id": history_id,
+            "ticket_id": ticket_id,
+            "previous_status": current_status,
+            "new_status": current_status,
+            "changed_by": changed_by,
+            "notes": f"Reassigned from {previous_assignee_name} to {new_assignee_name}",
+            "changed_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        container.create_item(body=record)
+    except Exception as e:
+        logger.error(
+            "Failed to write reassignment history for ticket %s: %s", ticket_id, e
         )

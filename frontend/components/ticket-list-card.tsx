@@ -38,6 +38,8 @@ export interface Ticket {
   priority: string;
   created_at: string;
   updated_at: string;
+  assigned_to?: string | null;
+  assigned_to_name?: string | null;
 }
 
 interface TicketListCardProps {
@@ -53,6 +55,8 @@ interface TicketListCardProps {
   setCategoryFilter: (val: string) => void;
   onSearch: () => void;
   actionButton?: React.ReactNode;
+  renderRowAction?: (ticket: Ticket) => React.ReactNode;
+  showAssigneeColumn?: boolean;
 }
 
 export function TicketListCard({
@@ -68,7 +72,10 @@ export function TicketListCard({
   setCategoryFilter,
   onSearch,
   actionButton,
+  renderRowAction,
+  showAssigneeColumn,
 }: TicketListCardProps) {
+  const totalColumns = showAssigneeColumn ? 8 : 7;
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "open":
@@ -170,6 +177,7 @@ export function TicketListCard({
                 <TableHead>Category</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Priority</TableHead>
+                {showAssigneeColumn && <TableHead>Assignee</TableHead>}
                 <TableHead>Date Created</TableHead>
                 <TableHead className="text-right pr-3">Action</TableHead>
               </TableRow>
@@ -177,14 +185,14 @@ export function TicketListCard({
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
+                  <TableCell colSpan={totalColumns} className="h-24 text-center">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
                   </TableCell>
                 </TableRow>
               ) : tickets.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={totalColumns}
                     className="h-24 text-center text-muted-foreground"
                   >
                     No tickets found.
@@ -215,15 +223,29 @@ export function TicketListCard({
                         {ticket.priority}
                       </Badge>
                     </TableCell>
+                    {showAssigneeColumn && (
+                      <TableCell>
+                        {ticket.assigned_to_name ? (
+                          ticket.assigned_to_name
+                        ) : (
+                          <span className="italic text-muted-foreground">
+                            Unassigned
+                          </span>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell className="text-muted-foreground">
                       {format(new Date(ticket.created_at), "MMM d, yyyy")}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/tickets/${ticket.ticket_id}`}>
-                          View <ArrowRightIcon className="w-4 h-4 ml-1" />
-                        </Link>
-                      </Button>
+                      <div className="flex justify-end items-center gap-2">
+                        {renderRowAction?.(ticket)}
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/tickets/${ticket.ticket_id}`}>
+                            View <ArrowRightIcon className="w-4 h-4 ml-1" />
+                          </Link>
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
