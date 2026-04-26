@@ -131,11 +131,11 @@ def update_user_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     except ValueError:
         return error_response("Invalid JSON format.", 400)
         
-    from shared.user.user_service import update_user
+    from shared.user.user_service import update_user, _strip_password_hash
     try:
         updated_user = update_user(user_id, updates)
         if not updated_user:
             return error_response("User not found.", 404)
-        return json_response({"success": True, "user": updated_user})
+        return json_response({"success": True, "user": _strip_password_hash(updated_user)})
     except Exception as e:
         return error_response(str(e), 500)

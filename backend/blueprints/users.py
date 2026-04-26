@@ -1,9 +1,11 @@
 """
 Users Blueprint — public endpoints for user management
 API:
-  POST /api/users/login    - Upsert user on login (create if new, return if existing)
-  GET  /api/users          - Get user by email query param
-  GET  /api/users/{userId} - Get user by ID
+  POST /api/users/login           - Upsert user on login (create if new, return if existing)
+  POST /api/users/signup          - Self-service email/password sign-up
+  POST /api/users/login_password  - Email/password sign-in
+  GET  /api/users                 - Get user by email query param
+  GET  /api/users/{userId}        - Get user by ID
 """
 
 import logging
@@ -13,8 +15,15 @@ from shared.user.user_service import (
     upsert_user,
     get_user_by_email,
     get_user_by_id,
+    create_user_with_password,
+    verify_user_credentials,
+    _strip_password_hash,
 )
-from shared.user.validator import validate_user
+from shared.user.validator import (
+    validate_user,
+    validate_signup,
+    validate_password_login,
+)
 from utils.auth import require_role
 from utils.http_helpers import (
     error_response,
@@ -54,6 +63,70 @@ def user_login(req: func.HttpRequest) -> func.HttpResponse:
 
     return json_response({
         "success": True,
+        "user": _strip_password_hash(user),
+    })
+
+
+# ── POST /api/users/signup ─────────────────────────────────────────
+# Self-service email/password sign-up
+@bp.route(route="users/signup", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def user_signup(req: func.HttpRequest) -> func.HttpResponse:
+
+    if req.method == "OPTIONS":
+        return preflight_response()
+
+    try:
+        data = req.get_json()
+    except ValueError:
+        return error_response("Invalid JSON format.")
+
+    errors = validate_signup(data)
+    if errors:
+        return json_response({"error": "Validation failed", "details": errors}, 400)
+
+    try:
+        if get_user_by_email(data["email"]):
+            return error_response("Email already registered.", 409)
+
+        user = create_user_with_password(data)
+    except Exception as e:
+        logger.error("Failed to sign up user: %s", e)
+        return error_response("Failed to create account.", 500)
+
+    return json_response({
+        "success": True,
+        "user": _strip_password_hash(user),
+    })
+
+
+# ── POST /api/users/login_password ─────────────────────────────────
+# Email/password sign-in
+@bp.route(route="users/login_password", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def user_login_password(req: func.HttpRequest) -> func.HttpResponse:
+
+    if req.method == "OPTIONS":
+        return preflight_response()
+
+    try:
+        data = req.get_json()
+    except ValueError:
+        return error_response("Invalid JSON format.")
+
+    errors = validate_password_login(data)
+    if errors:
+        return json_response({"error": "Validation failed", "details": errors}, 400)
+
+    try:
+        user = verify_user_credentials(data["email"], data["password"])
+    except Exception as e:
+        logger.error("Failed to verify credentials: %s", e)
+        return error_response("Failed to process sign-in.", 500)
+
+    if not user:
+        return error_response("Invalid email or password.", 401)
+
+    return json_response({
+        "success": True,
         "user": user,
     })
 
@@ -77,7 +150,7 @@ def get_user_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         if not user:
             return error_response("User not found.", 404)
 
-        return json_response({"user": user})
+        return json_response({"user": _strip_password_hash(user)})
 
     except Exception as e:
         logger.error("Failed to retrieve user for %s: %s", email, e)
@@ -106,7 +179,7 @@ def get_user_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         if not user:
             return error_response("User not found.", 404)
 
-        return json_response({"user": user})
+        return json_response({"user": _strip_password_hash(user)})
 
     except Exception as e:
         logger.error("Failed to retrieve user %s: %s", user_id, e)

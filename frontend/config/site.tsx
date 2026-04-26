@@ -28,8 +28,8 @@ import {
 
 export const siteConfig = {
   // Paths
-  publicPaths: ["/", "/404", "/login", "/logout", "/register"],
-  wrapperDisabledPaths: ["/", "/404", "/login", "/logout", "/register"],
+  publicPaths: ["/", "/404", "/login", "/logout", "/register", "/signup"],
+  wrapperDisabledPaths: ["/", "/404", "/login", "/logout", "/register", "/signup"],
 
   // Branding
   company: {

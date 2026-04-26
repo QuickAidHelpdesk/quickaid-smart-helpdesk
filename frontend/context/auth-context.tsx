@@ -52,6 +52,13 @@ interface AuthContextType {
   pendingUser: PendingUser | null;
   isLoading: boolean;
   login: () => Promise<void>;
+  loginWithPassword: (email: string, password: string) => Promise<void>;
+  signupWithPassword: (
+    displayName: string,
+    email: string,
+    password: string,
+    role: string
+  ) => Promise<void>;
   logout: () => void;
   completeRegistration: (displayName: string, role: string) => Promise<void>;
 }
@@ -61,6 +68,8 @@ const AuthContext = createContext<AuthContextType>({
   pendingUser: null,
   isLoading: true,
   login: async () => {},
+  loginWithPassword: async () => {},
+  signupWithPassword: async () => {},
   logout: () => {},
   completeRegistration: async () => {},
 });
@@ -153,6 +162,40 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
     await instance.loginRedirect(loginRequest);
   }, [instance, inProgress]);
 
+  const persistSession = useCallback((nextUser: User) => {
+    setUser(nextUser);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+    setSessionCookie(nextUser.email);
+    window.location.href = getDashboardPath(nextUser.role);
+  }, []);
+
+  const loginWithPassword = useCallback(
+    async (email: string, password: string) => {
+      const res = await apiPost<{ success: boolean; user: User }>(
+        "/users/login_password",
+        { email, password }
+      );
+      persistSession(res.user);
+    },
+    [persistSession]
+  );
+
+  const signupWithPassword = useCallback(
+    async (
+      displayName: string,
+      email: string,
+      password: string,
+      role: string
+    ) => {
+      const res = await apiPost<{ success: boolean; user: User }>(
+        "/users/signup",
+        { display_name: displayName, email, password, role }
+      );
+      persistSession(res.user);
+    },
+    [persistSession]
+  );
+
   const logout = useCallback(() => {
     setUser(null);
     setPendingUser(null);
@@ -189,7 +232,16 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, pendingUser, isLoading, login, logout, completeRegistration }}
+      value={{
+        user,
+        pendingUser,
+        isLoading,
+        login,
+        loginWithPassword,
+        signupWithPassword,
+        logout,
+        completeRegistration,
+      }}
     >
       {children}
     </AuthContext.Provider>

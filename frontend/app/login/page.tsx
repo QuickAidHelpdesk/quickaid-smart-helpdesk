@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { z } from "zod";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,16 +15,39 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { useAuth } from "@/context/auth-context";
 
+const passwordFormSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email is required.")
+    .email("Enter a valid email address."),
+  password: z.string().min(1, "Password is required."),
+});
+
+type PasswordFormValues = z.infer<typeof passwordFormSchema>;
+
 export default function LoginPage() {
-  const { login, user, isLoading: authLoading } = useAuth();
+  const { login, loginWithPassword, user, isLoading: authLoading } = useAuth();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isMsalLoading, setIsMsalLoading] = useState(false);
+  const [isPasswordLoading, setIsPasswordLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // True when returning from Microsoft redirect (MSAL processing)
   const isRedirecting = authLoading || user;
+
+  const form = useForm<PasswordFormValues>({
+    resolver: zodResolver(passwordFormSchema),
+    defaultValues: { email: "", password: "" },
+  });
 
   // Redirect authenticated users to dashboard
   useEffect(() => {
@@ -30,8 +56,8 @@ export default function LoginPage() {
     }
   }, [authLoading, user, router]);
 
-  const handleLogin = async () => {
-    setIsLoading(true);
+  const handleMsalLogin = async () => {
+    setIsMsalLoading(true);
     setError(null);
     try {
       await login();
@@ -40,7 +66,21 @@ export default function LoginPage() {
       setError(
         err instanceof Error ? err.message : "Login failed. Please try again."
       );
-      setIsLoading(false);
+      setIsMsalLoading(false);
+    }
+  };
+
+  const handlePasswordLogin = async (values: PasswordFormValues) => {
+    setIsPasswordLoading(true);
+    setError(null);
+    try {
+      await loginWithPassword(values.email.trim().toLowerCase(), values.password);
+      // persistSession redirects via window.location — won't reach here
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Login failed. Please try again."
+      );
+      setIsPasswordLoading(false);
     }
   };
 
@@ -74,10 +114,10 @@ export default function LoginPage() {
                   variant="outline"
                   className="w-full flex items-center gap-3 relative h-11"
                   type="button"
-                  onClick={handleLogin}
-                  disabled={isLoading}
+                  onClick={handleMsalLogin}
+                  disabled={isMsalLoading || isPasswordLoading}
                 >
-                  {isLoading ? (
+                  {isMsalLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
                     <svg
@@ -92,9 +132,90 @@ export default function LoginPage() {
                     </svg>
                   )}
                   <span className="font-medium text-foreground">
-                    {isLoading ? "Signing in..." : "Continue with Entra ID"}
+                    {isMsalLoading ? "Signing in..." : "Continue with Entra ID"}
                   </span>
                 </Button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">
+                      or continue with email
+                    </span>
+                  </div>
+                </div>
+
+                <form
+                  onSubmit={form.handleSubmit(handlePasswordLogin)}
+                  className="flex flex-col gap-4"
+                  noValidate
+                >
+                  <FieldGroup>
+                    <Controller
+                      name="email"
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel htmlFor="email">Email</FieldLabel>
+                          <Input
+                            {...field}
+                            id="email"
+                            type="email"
+                            autoComplete="email"
+                            placeholder="you@example.com"
+                            aria-invalid={fieldState.invalid}
+                          />
+                          {fieldState.invalid && (
+                            <FieldError errors={[fieldState.error]} />
+                          )}
+                        </Field>
+                      )}
+                    />
+                    <Controller
+                      name="password"
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel htmlFor="password">Password</FieldLabel>
+                          <Input
+                            {...field}
+                            id="password"
+                            type="password"
+                            autoComplete="current-password"
+                            placeholder="••••••••"
+                            aria-invalid={fieldState.invalid}
+                          />
+                          {fieldState.invalid && (
+                            <FieldError errors={[fieldState.error]} />
+                          )}
+                        </Field>
+                      )}
+                    />
+                  </FieldGroup>
+                  <Button
+                    type="submit"
+                    className="w-full h-11"
+                    disabled={isPasswordLoading || isMsalLoading}
+                  >
+                    {isPasswordLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      "Sign in"
+                    )}
+                  </Button>
+                </form>
+
+                <p className="text-center text-sm text-muted-foreground">
+                  Don&apos;t have an account?{" "}
+                  <Link
+                    href="/signup"
+                    className="font-medium underline underline-offset-4 hover:text-primary"
+                  >
+                    Sign up
+                  </Link>
+                </p>
               </div>
               <div className="mt-4 text-center text-sm text-balance text-muted-foreground">
                 By clicking continue, you agree to our{" "}

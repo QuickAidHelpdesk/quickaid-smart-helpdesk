@@ -7,6 +7,14 @@ import uuid
 from datetime import datetime, timezone
 
 from utils.cosmos_client import get_container, USERS_CONTAINER
+from utils.password import hash_password
+
+
+def _strip_password_hash(user: dict | None) -> dict | None:
+    if not user:
+        return user
+    safe = {k: v for k, v in user.items() if k != "password_hash"}
+    return safe
 
 
 # %% Create (C) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -22,12 +30,35 @@ def create_user(data: dict) -> dict:
         "display_name": data["display_name"].strip(),
         "email": data["email"].strip().lower(),
         "role": data.get("role", "user"),
+        "password_hash": data.get("password_hash"),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 
     container.create_item(body=user)
     return user
+
+
+# Create user with a bcrypt-hashed password (self-service signup).
+def create_user_with_password(data: dict) -> dict:
+    payload = dict(data)
+    payload["password_hash"] = hash_password(data["password"])
+    payload.pop("password", None)
+    return create_user(payload)
+
+
+# Verify email + password and return the user (without password_hash) on success.
+def verify_user_credentials(email: str, password: str) -> dict | None:
+    user = get_user_by_email(email)
+    if not user:
+        return None
+
+    from utils.password import verify_password
+
+    if not verify_password(password, user.get("password_hash")):
+        return None
+
+    return _strip_password_hash(user)
 
 
 # %% Read (R) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

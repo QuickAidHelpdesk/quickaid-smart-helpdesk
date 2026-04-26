@@ -42,3 +42,42 @@ def validate_user(data: dict) -> list:
         )
 
     return errors
+
+
+def validate_signup(data: dict) -> list:
+    """Validate self-service email/password sign-up payload."""
+    errors = validate_user(data)
+
+    password = data.get("password")
+    if not password or not str(password).strip():
+        errors.append("password is required")
+        return errors
+
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters")
+    if len(password) > 128:
+        errors.append("Password must not exceed 128 characters")
+
+    return errors
+
+
+def validate_password_login(data: dict) -> list:
+    """Validate email + password sign-in payload."""
+    errors = []
+
+    email = data.get("email")
+    password = data.get("password")
+
+    if not email or not str(email).strip():
+        errors.append("email is required")
+    if not password or not str(password).strip():
+        errors.append("password is required")
+
+    if errors:
+        return errors
+
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, email):
+        errors.append("Invalid email format")
+
+    return errors
