@@ -1,19 +1,25 @@
 """
-Tickets Blueprint — public endpoints for ticket submission and tracking (UC-2, UC-4, UC-6)
+Tickets Blueprint — public endpoints for ticket submission and tracking (UC-2, UC-4, UC-6, UC-12, UC-13, UC-14)
 API:
-  POST  /api/submit_ticket        - Submit a new helpdesk ticket
-  GET   /api/tickets              - Display a list of tickets with filters
-  GET   /api/tickets/{ticketId}   - Display a full ticket details
-  GET   /api/tickets/search?q=    - Search ticket by subject or ticket ID
-  PATCH /api/tickets/{ticketId}   - Edit a ticket submitted by the current user
+  POST   /api/submit_ticket                 - Submit a new helpdesk ticket
+  GET    /api/tickets                       - Display a list of tickets with filters
+  GET    /api/tickets/{ticketId}            - Display a full ticket details
+  GET    /api/tickets/search?q=             - Search ticket by subject or ticket ID
+  PATCH  /api/tickets/{ticketId}            - Edit a ticket submitted by the current user
+  DELETE /api/tickets/{ticketId}            - Soft-delete a ticket (owner only)
+  GET    /api/tickets/{ticketId}/comments   - List progress entries on a ticket
+  POST   /api/tickets/{ticketId}/comments   - Add a progress entry
+  POST   /api/tickets/{ticketId}/finish     - Resolve ticket + write resolution entry
 """
 
 import logging
+from datetime import datetime
 import azure.functions as func
 
 from shared.ticket.email_service import (
     send_confirmation_email,
     send_edit_confirmation_email,
+    send_status_update_email,
 )
 from shared.ticket.ticket_service import (
     create_ticket,
@@ -21,7 +27,14 @@ from shared.ticket.ticket_service import (
     search_tickets,
     get_ticket_by_id,
     update_ticket,
+    update_ticket_status,
+    soft_delete_ticket,
 )
+from shared.ticket.comment_service import (
+    create_comment,
+    get_comments_for_ticket,
+)
+from shared.ticket.comment_validator import validate_comment
 from shared.ticket.validator import validate_ticket, validate_ticket_update
 from utils.auth import require_role
 from utils.http_helpers import (
@@ -180,9 +193,10 @@ def search_tickets_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
 
 # ── /api/tickets/{ticketId} ─────────────────────────────────────────
-# GET:   display full ticket details
-# PATCH: edit a ticket submitted by the current user
-@bp.route(route="tickets/{ticketId}", methods=["GET", "PATCH", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+# GET:    display full ticket details
+# PATCH:  edit a ticket submitted by the current user
+# DELETE: soft-delete a ticket (owner only) — UC-14
+@bp.route(route="tickets/{ticketId}", methods=["GET", "PATCH", "DELETE", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def ticket_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     if req.method == "OPTIONS":
@@ -203,6 +217,34 @@ def ticket_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         except Exception as e:
             logger.error("Failed to retrieve ticket %s: %s", ticket_id, e)
             return error_response("Failed to retrieve ticket. Please try again later.", 500)
+
+    if req.method == "DELETE":
+        # FR-14-01: owner soft-deletes their own ticket
+        try:
+            ticket = get_ticket_by_id(ticket_id)
+        except Exception as e:
+            logger.error("Failed to retrieve ticket %s: %s", ticket_id, e)
+            return error_response("Failed to retrieve ticket.", 500)
+
+        if not ticket:
+            return error_response("Ticket not found.", 404)
+
+        if ticket["email"].lower() != user["email"].lower():
+            return error_response("You can only delete your own tickets.", 403)
+
+        if ticket.get("is_deleted"):
+            return error_response("Ticket is already deleted.", 409)
+
+        try:
+            soft_delete_ticket(ticket, user["email"])
+        except Exception as e:
+            logger.error("Failed to soft-delete ticket %s: %s", ticket_id, e)
+            return error_response("Failed to delete ticket.", 500)
+
+        return json_response({
+            "success": True,
+            "message": f"Ticket {ticket_id} deleted. Your support team can still see it.",
+        })
 
     # PATCH — edit a ticket
     try:
@@ -255,4 +297,199 @@ def ticket_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         "message": f"Ticket {ticket['ticket_id']} updated. A confirmation email has been sent.",
         "ticket": ticket,
         "changes": changes,
+    })
+
+
+# ── Visibility helper for ticket comments + finish ─────────────────
+# Owner / matching-team agent / admin can see and post on a ticket.
+def _can_access_ticket(user: dict, ticket: dict) -> bool:
+    role = user.get("role")
+    if role == "admin":
+        return True
+    if role == "agent":
+        from shared.team.team_service import get_teams_for_user
+        teams = get_teams_for_user(user["user_id"])
+        cats = {t.get("category") for t in teams if t.get("category")}
+        return ticket.get("category") in cats
+    # user role
+    return ticket.get("email", "").lower() == user.get("email", "").lower()
+
+
+# ── /api/tickets/{ticketId}/comments ────────────────────────────────
+# GET:  list progress entries on a ticket
+# POST: add a new progress entry
+# UC-12 / FR-12-01
+@bp.route(
+    route="tickets/{ticketId}/comments",
+    methods=["GET", "POST", "OPTIONS"],
+    auth_level=func.AuthLevel.ANONYMOUS,
+)
+def ticket_comments_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+
+    if req.method == "OPTIONS":
+        return preflight_response()
+
+    user, err = require_role(req, ["user", "agent", "admin"])
+    if err:
+        return err
+
+    ticket_id = req.route_params.get("ticketId")
+
+    try:
+        ticket = get_ticket_by_id(ticket_id)
+    except Exception as e:
+        logger.error("Failed to retrieve ticket %s: %s", ticket_id, e)
+        return error_response("Failed to retrieve ticket.", 500)
+
+    if not ticket:
+        return error_response("Ticket not found.", 404)
+
+    if not _can_access_ticket(user, ticket):
+        return error_response("You are not authorized to view this ticket.", 403)
+
+    if req.method == "GET":
+        try:
+            comments = get_comments_for_ticket(ticket_id)
+            return json_response({"comments": comments})
+        except Exception as e:
+            logger.error("Failed to load comments for ticket %s: %s", ticket_id, e)
+            return error_response("Failed to load progress entries.", 500)
+
+    # POST — add a comment
+    try:
+        data = req.get_json()
+    except ValueError:
+        return error_response("Invalid JSON format.")
+
+    errors = validate_comment(data)
+    if errors:
+        return json_response({"error": "Validation failed", "details": errors}, 400)
+
+    try:
+        comment = create_comment(
+            ticket_id=ticket_id,
+            entry_type="comment",
+            topic=data["topic"],
+            description=data["description"],
+            location=data.get("location"),
+            author=user,
+        )
+    except Exception as e:
+        logger.error("Failed to create comment on ticket %s: %s", ticket_id, e)
+        return error_response("Failed to post progress entry.", 500)
+
+    return json_response({"success": True, "comment": comment}, 201)
+
+
+# ── POST /api/tickets/{ticketId}/finish ─────────────────────────────
+# UC-13 / FR-13-01: agent or admin finishes the ticket — sets status to
+# Resolved (which writes status_history + sends status email) and writes a
+# resolution entry with optional location and time-to-resolve.
+@bp.route(
+    route="tickets/{ticketId}/finish",
+    methods=["POST", "OPTIONS"],
+    auth_level=func.AuthLevel.ANONYMOUS,
+)
+def finish_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+
+    if req.method == "OPTIONS":
+        return preflight_response()
+
+    user, err = require_role(req, ["agent", "admin"])
+    if err:
+        return err
+
+    ticket_id = req.route_params.get("ticketId")
+
+    try:
+        ticket = get_ticket_by_id(ticket_id)
+    except Exception as e:
+        logger.error("Failed to retrieve ticket %s: %s", ticket_id, e)
+        return error_response("Failed to retrieve ticket.", 500)
+
+    if not ticket:
+        return error_response("Ticket not found.", 404)
+
+    # Agent must be in a team whose category matches this ticket
+    if user["role"] == "agent":
+        from shared.team.team_service import get_teams_for_user
+        teams = get_teams_for_user(user["user_id"])
+        cats = {t.get("category") for t in teams if t.get("category")}
+        if ticket.get("category") not in cats:
+            return error_response(
+                "You can only finish tickets for categories assigned to your teams.",
+                403,
+            )
+
+    if ticket["status"] in ("Resolved", "Closed"):
+        return error_response(
+            f"Ticket is already '{ticket['status']}' and cannot be finished again.",
+            409,
+        )
+
+    try:
+        data = req.get_json()
+    except ValueError:
+        return error_response("Invalid JSON format.")
+
+    errors = validate_comment(data)
+    if errors:
+        return json_response({"error": "Validation failed", "details": errors}, 400)
+
+    previous_status = ticket["status"]
+
+    # Step 1: transition status to Resolved (writes status_history, sets resolved_at)
+    try:
+        updated_ticket = update_ticket_status(ticket, "Resolved", user["email"])
+    except Exception as e:
+        logger.error("Failed to resolve ticket %s: %s", ticket_id, e)
+        return error_response("Failed to mark ticket resolved.", 500)
+
+    # Step 2: compute time-to-resolve
+    resolved_in_seconds = None
+    try:
+        created = datetime.fromisoformat(updated_ticket["created_at"])
+        resolved = datetime.fromisoformat(updated_ticket["resolved_at"])
+        resolved_in_seconds = int((resolved - created).total_seconds())
+    except Exception as e:
+        logger.error("Failed to compute resolved_in_seconds for %s: %s", ticket_id, e)
+
+    # Step 3: write resolution comment (best-effort)
+    comment = None
+    try:
+        comment = create_comment(
+            ticket_id=ticket_id,
+            entry_type="resolution",
+            topic=data["topic"],
+            description=data["description"],
+            location=data.get("location"),
+            author=user,
+            resolved_in_seconds=resolved_in_seconds,
+        )
+    except Exception as e:
+        logger.error("Failed to write resolution comment for %s: %s", ticket_id, e)
+
+    # Telemetry
+    track_event("TicketResolved", {
+        "ticket_id": updated_ticket["ticket_id"],
+        "previous_status": previous_status,
+        "resolved_by": user["email"],
+        "resolved_in_seconds": resolved_in_seconds,
+    })
+
+    # Status-update email (fire-and-forget)
+    try:
+        send_status_update_email(
+            to_email=updated_ticket["email"],
+            ticket_id=updated_ticket["ticket_id"],
+            new_status=updated_ticket["status"],
+        )
+    except Exception as e:
+        logger.error("Status update email failed for ticket %s: %s", ticket_id, e)
+
+    return json_response({
+        "success": True,
+        "message": f"Ticket {ticket_id} resolved.",
+        "ticket": updated_ticket,
+        "comment": comment,
     })

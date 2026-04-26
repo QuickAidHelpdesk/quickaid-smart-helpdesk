@@ -43,6 +43,9 @@ def create_ticket(data: dict) -> dict:
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "resolved_at": None,
+        "is_deleted": False,
+        "deleted_at": None,
+        "deleted_by": None,
     }
 
     container.create_item(body=ticket)
@@ -64,6 +67,7 @@ def get_tickets_by_user_id(email: str, filters: dict = {}) -> list:
             c.created_at
         FROM c
         WHERE c.email = @email
+          AND (NOT IS_DEFINED(c.is_deleted) OR c.is_deleted = false)
     """
     params = [
         {"name": "@email", "value": email}
@@ -283,6 +287,19 @@ def update_ticket(ticket: dict, updates: dict) -> tuple[dict, dict]:
     return ticket, changes
 
 
+
+
+# Soft-delete a ticket — flagged for agents/admins, hidden from owner's list.
+def soft_delete_ticket(ticket: dict, deleted_by: str) -> dict:
+    container = get_container(TICKETS_CONTAINER)
+
+    ticket["is_deleted"] = True
+    ticket["deleted_at"] = datetime.now(timezone.utc).isoformat()
+    ticket["deleted_by"] = deleted_by
+    ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    container.upsert_item(body=ticket)
+    return ticket
 
 
 # Write a status change record to the status_history container (best-effort).

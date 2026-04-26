@@ -12,7 +12,10 @@ import {
   AlertCircle,
   CheckCircle2,
   Info,
+  Trash2,
+  TriangleAlert,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,9 +23,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -31,23 +32,26 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { apiGet } from "@/lib/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { apiGet, apiDelete } from "@/lib/api";
 import { useAuth } from "@/context/auth-context";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
-interface TicketDetails {
-  ticket_id: string;
-  email: string;
-  subject: string;
-  description: string;
-  category: string;
-  status: string;
-  priority: string;
-  created_at: string;
-  updated_at: string;
-  resolved_at?: string | null;
-}
+import { TicketProgressTimeline } from "@/components/ticket-progress-timeline";
+import { TicketCommentForm } from "@/components/ticket-comment-form";
+import { TicketResolveDialog } from "@/components/ticket-resolve-dialog";
+import { TicketComment, TicketDetails } from "@/types/ticket";
 
 export default function TicketDetailsPage({
   params,
@@ -60,8 +64,12 @@ export default function TicketDetailsPage({
   const { user } = useAuth();
   const router = useRouter();
   const [ticket, setTicket] = useState<TicketDetails | null>(null);
+  const [comments, setComments] = useState<TicketComment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [commentsLoading, setCommentsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [resolveOpen, setResolveOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchTicket = useCallback(async () => {
     if (!user || !ticketId) return;
@@ -70,19 +78,49 @@ export default function TicketDetailsPage({
       setError(null);
       const res = await apiGet<TicketDetails>(`/tickets/${ticketId}`);
       setTicket(res);
-    } catch (err: any) {
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to load ticket details.";
       console.error("Failed to fetch ticket:", err);
-      setError(err.message || "Failed to load ticket details.");
+      setError(msg);
     } finally {
       setLoading(false);
+    }
+  }, [ticketId, user]);
+
+  const fetchComments = useCallback(async () => {
+    if (!user || !ticketId) return;
+    try {
+      setCommentsLoading(true);
+      const res = await apiGet<{ comments: TicketComment[] }>(
+        `/tickets/${ticketId}/comments`
+      );
+      setComments(res.comments || []);
+    } catch (err) {
+      console.error("Failed to fetch comments:", err);
+      setComments([]);
+    } finally {
+      setCommentsLoading(false);
     }
   }, [ticketId, user]);
 
   useEffect(() => {
     if (user) {
       fetchTicket();
+      fetchComments();
     }
-  }, [fetchTicket, user]);
+  }, [fetchTicket, fetchComments, user]);
+
+  const isOwner = !!user && !!ticket && user.email.toLowerCase() === ticket.email.toLowerCase();
+  const isAdmin = user?.role === "admin";
+  const isAgent = user?.role === "agent";
+  const canPost = isOwner || isAdmin || isAgent;
+  const canFinish = (isAdmin || isAgent) && !isOwner;
+  const canDelete = isOwner && !ticket?.is_deleted;
+  const isResolvable = ticket
+    ? ["Open", "In Progress"].includes(ticket.status)
+    : false;
+  const showDeletedBanner = !!ticket?.is_deleted && (isAdmin || isAgent);
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -112,6 +150,20 @@ export default function TicketDetailsPage({
         return "default";
     }
   };
+
+  async function handleDelete() {
+    if (!ticket) return;
+    try {
+      setDeleting(true);
+      await apiDelete(`/tickets/${ticket.ticket_id}`);
+      toast.success("Ticket deleted.");
+      router.push("/tickets");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete ticket.";
+      toast.error(msg);
+      setDeleting(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -144,7 +196,7 @@ export default function TicketDetailsPage({
 
   return (
     <div className="flex flex-col gap-8 p-6 max-w-5xl mx-auto w-full mt-4">
-      {/* Header Section */}
+      {/* Header */}
       <div className="flex flex-col gap-6">
         <Breadcrumb>
           <BreadcrumbList>
@@ -181,7 +233,7 @@ export default function TicketDetailsPage({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge
               variant={getStatusColor(ticket.status)}
               className="px-3 py-1 text-sm font-medium capitalize"
@@ -198,12 +250,77 @@ export default function TicketDetailsPage({
                   Resolved
                 </Badge>
               )}
+
+            {canFinish && isResolvable && (
+              <Button
+                size="sm"
+                onClick={() => setResolveOpen(true)}
+                className="ml-1"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Mark Resolved
+              </Button>
+            )}
+
+            {canDelete && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    aria-label="Delete ticket"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this ticket?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Your support team will still be able to see it as deleted.
+                      You won&apos;t see it in your tickets list anymore.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={deleting}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="bg-destructive text-white hover:bg-destructive/90"
+                    >
+                      {deleting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      {deleting ? "Deleting..." : "Delete ticket"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
       </div>
 
+      {showDeletedBanner && (
+        <Alert variant="destructive">
+          <TriangleAlert className="h-4 w-4" />
+          <AlertTitle>Deleted by user</AlertTitle>
+          <AlertDescription>
+            {ticket.deleted_by} deleted this ticket on{" "}
+            {ticket.deleted_at &&
+              format(new Date(ticket.deleted_at), "MMM d, yyyy 'at' HH:mm")}
+            . It is hidden from the user&apos;s list but visible to your team.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Content Area */}
+        {/* Main column */}
         <div className="lg:col-span-2 flex flex-col gap-8">
           <Card className="shadow-sm">
             <CardHeader>
@@ -226,9 +343,30 @@ export default function TicketDetailsPage({
               </div>
             </CardContent>
           </Card>
+
+          <TicketProgressTimeline
+            comments={comments}
+            loading={commentsLoading}
+          />
+
+          {canPost && !ticket.is_deleted && (
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold">
+                  Add an update
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="py-3">
+                <TicketCommentForm
+                  ticketId={ticket.ticket_id}
+                  onPosted={fetchComments}
+                />
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        {/* Sidebar Information */}
+        {/* Sidebar */}
         <div className="flex flex-col gap-6">
           <Card className="shadow-sm">
             <CardHeader>
@@ -257,7 +395,6 @@ export default function TicketDetailsPage({
                 </div>
               </div>
 
-
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Category
@@ -269,10 +406,37 @@ export default function TicketDetailsPage({
                   </span>
                 </div>
               </div>
+
+              {ticket.resolved_at && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Resolved
+                  </span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium">
+                      {format(
+                        new Date(ticket.resolved_at),
+                        "MMM d, yyyy 'at' HH:mm"
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
       </div>
+
+      <TicketResolveDialog
+        ticketId={ticket.ticket_id}
+        open={resolveOpen}
+        onOpenChange={setResolveOpen}
+        onResolved={() => {
+          fetchTicket();
+          fetchComments();
+        }}
+      />
     </div>
   );
 }

@@ -85,7 +85,7 @@ As an optional enhancement, the proposed system integrates Azure Application Ins
 ### II. Backend
 
 - Azure Functions (Python 3.9+) using the V2 programming model with Blueprints
-- HTTP-triggered serverless functions organised by service: `tickets`, `users`, `staff`, `admin`, `insights`
+- HTTP-triggered serverless functions organised by service: `tickets`, `users`, `agent`, `admin`, `insights`, `teams`
 - Azure Functions Core Tools for local development and testing
 
 ### III. Database
@@ -107,7 +107,7 @@ As an optional enhancement, the proposed system integrates Azure Application Ins
 ### VI. Monitoring
 
 - Azure Application Insights for telemetry and performance tracking
-- Custom events: `TicketSubmitted`, `TicketAssigned`, `TicketStatusChanged`
+- Custom events: `TicketSubmitted`, `TicketStatusChanged`, `TicketResolved`
 - In-app monitoring dashboard (UC-11) at `/admin/insights` backed by `/api/manage/insights`
 
 ### VII. Deployment
@@ -169,6 +169,11 @@ This section will discuss all the actors involved in the QuickAid system with a 
 | **FR-06-02** | | | The system shall query Cosmos DB and return all tickets matching the entered in the input field. |
 | **FR-06-03** | | | The system shall display a message stating "No tickets matched your search. Try different keywords." when the search query returns no results. |
 | **FR-06-04** | | | The system shall display a user-friendly error message if the Cosmos DB search query fails due to a service issue. |
+| **FR-12-01** | **UC-12** | **Comment on Ticket** | The system shall allow the ticket owner, agents whose team category matches the ticket's category, and admins to post progress entries (topic, description, optional location) on a ticket. Entries are stored in the `ticket_comments` container and rendered in chronological order. |
+| **FR-12-02** | | | The system shall validate progress-entry topic (3–100 chars) and description (3–1000 chars), and reject locations longer than 200 chars. |
+| **FR-12-03** | | | The system shall reject comment submissions from users who do not have visibility on the ticket with HTTP 403. |
+| **FR-14-01** | **UC-14** | **Delete Own Ticket (Soft)** | The system shall allow a ticket owner to soft-delete their own ticket. Deleted tickets are flagged with `is_deleted`, `deleted_at`, and `deleted_by`, are hidden from the owner's ticket list, and remain visible to agents and admins with a "Deleted by user" indicator. |
+| **FR-14-02** | | | The system shall reject delete requests from non-owners with HTTP 403, and reject deleting an already-deleted ticket with HTTP 409. |
 
 ## Ticket Management Module
 
@@ -188,6 +193,9 @@ This section will discuss all the actors involved in the QuickAid system with a 
 | **FR-10-02** | | | The system shall allow admin users to assign tickets to specific support staff members. |
 | **FR-10-03** | | | The system shall automatically change the ticket status from "Open" to "In Progress" when a ticket is assigned. |
 | **FR-10-04** | | | The system shall allow the Admin to filter the full ticket list by status, category, priority, user type, and date range. |
+| **FR-13-01** | **UC-13** | **Finish Ticket** | The system shall allow agents (matching team category) and admins to finish a ticket via a single action that (a) sets status to Resolved, (b) writes a resolution entry to `ticket_comments` containing topic, description, optional location, finisher email, and time-to-resolve in seconds, and (c) sends the existing status-update email to the submitter. |
+| **FR-13-02** | | | The system shall reject finish requests on tickets already in `Resolved` or `Closed` state with HTTP 409. |
+| **FR-13-03** | | | The system shall emit a `TicketResolved` Application Insights event each time a ticket is finished. |
 | **FR-11-01** | **UC-11** | **View System Performance (Application Insights)** | The system shall integrate Azure Application Insights to monitor application performance, request rates, and response times. |
 | **FR-11-02** | | | The system shall log custom events for ticket submission, retrieval, and status changes for analytics purposes. |
 | **FR-11-03** | | | The system shall provide a monitoring dashboard showing error rates, dependency failures, and user activity metrics. |
@@ -205,7 +213,8 @@ QuickAid uses Azure Cosmos DB with the Core SQL API. The database is structured 
 | **user_id** | string | PK | Unique user identifier (Azure AD or email-based) |
 | **display_name** | string | — | User's full display name |
 | **email** | string | UNIQUE, IDX | User's institutional email address |
-| **role** | enum | — | User role: student, staff, or admin |
+| **role** | enum | — | User role: user, agent, or admin |
+| **team_id** | string | FK, nullable | References teams.team_id (agents only) |
 | **created_at** | timestamp | — | Account creation timestamp |
 
 ### 2. tickets
@@ -219,10 +228,12 @@ QuickAid uses Azure Cosmos DB with the Core SQL API. The database is structured 
 | **category** | enum | — | Ticket category: IT Support, Facilities, Academic, Library, Finance, General |
 | **priority** | enum | — | Priority level: Low, Medium, High, Urgent |
 | **status** | enum | — | Ticket status: Open, In Progress, Resolved, Closed |
-| **assigned_to** | string | FK, nullable | References users.user_id (admin/staff assigned) |
 | **created_at** | timestamp | — | Ticket submission timestamp |
 | **updated_at** | timestamp | — | Last status update timestamp |
 | **resolved_at** | timestamp | nullable | Timestamp when ticket was resolved |
+| **is_deleted** | boolean | — | True if the owner soft-deleted the ticket; hidden from owner's list, still visible to agents/admins |
+| **deleted_at** | timestamp | nullable | Timestamp of soft-delete |
+| **deleted_by** | string | nullable | Email of the user who deleted the ticket |
 
 ### 3. status_history
 
@@ -248,7 +259,27 @@ QuickAid uses Azure Cosmos DB with the Core SQL API. The database is structured 
 | **status** | enum | — | Delivery status: sent, delivered, failed, bounced |
 | **sent_at** | timestamp | — | Timestamp when the email was sent |
 
-### 5. admin_notes
+### 5. ticket_comments
+
+Implemented. Partition key `/ticket_id`. Stores append-only progress entries on each ticket — both free-form `comment` entries from owner / agent / admin and the special `resolution` entry written by the finish flow.
+
+| Field | Type | Constraint | Description |
+|-------|------|-----------|-------------|
+| **comment_id** | string | PK | Unique identifier for the entry |
+| **ticket_id** | string | FK, partition key | References tickets.ticket_id |
+| **entry_type** | enum | — | `comment` or `resolution` |
+| **topic** | string | — | Short topic / heading (3–100 chars) |
+| **description** | string | — | Body of the entry (3–1000 chars) |
+| **location** | string | nullable | Optional place tag (≤200 chars) |
+| **author_email** | string | — | Email of the entry author |
+| **author_role** | enum | — | `user`, `agent`, or `admin` at the time of posting |
+| **author_display_name** | string | — | Display name snapshot |
+| **created_at** | timestamp | — | Entry creation timestamp |
+| **resolved_in_seconds** | integer | nullable | Time-to-resolve in seconds (only set for `resolution` entries) |
+
+### 6. admin_notes (planned)
+
+Not yet implemented in code. Reserved for a future "internal admin-only notes" feature distinct from `ticket_comments`.
 
 | Field | Type | Constraint | Description |
 |-------|------|-----------|-------------|
@@ -263,11 +294,10 @@ QuickAid uses Azure Cosmos DB with the Core SQL API. The database is structured 
 | Relationship | Type | Description |
 |-------------|------|-------------|
 | users → tickets | One-to-Many (1:N) | One user can submit many helpdesk tickets |
-| users → admin_notes | One-to-Many (1:N) | One admin user can author many internal notes |
 | tickets → status_history | One-to-Many (1:N) | One ticket can have many status change records |
+| tickets → ticket_comments | One-to-Many (1:N) | One ticket can have many progress entries (comments + one resolution) |
 | tickets → email_logs | One-to-Many (1:N) | One ticket can trigger many email notifications |
-| tickets → admin_notes | One-to-Many (1:N) | One ticket can have many internal admin notes |
-| users → tickets (assigned_to) | One-to-Many (1:N) | One admin/staff can be assigned to many tickets |
+| teams → users (agents) | One-to-Many (1:N) | One team can have many agent users assigned via `team_id` |
 
 ## Database Diagram
 
@@ -300,31 +330,35 @@ The backend is implemented with the Azure Functions V2 programming model using B
 | Method | Endpoint | Blueprint Handler | Description |
 |--------|----------|-------------------|-------------|
 | **POST** | /api/submit_ticket | `tickets.submit_ticket` | Validates input, stores the ticket in Cosmos DB, emits a `TicketSubmitted` telemetry event, and sends a confirmation email via Azure Communication Services. |
-| **GET** | /api/tickets | `tickets.get_tickets_endpoint` | Retrieves all tickets belonging to the authenticated user (filters: `status`, `category`). |
+| **GET** | /api/tickets | `tickets.get_tickets_endpoint` | Retrieves all tickets belonging to the authenticated user (filters: `status`, `category`). Excludes soft-deleted tickets. |
 | **GET** | /api/tickets/search?q= | `tickets.search_tickets_endpoint` | Searches tickets by subject or ticket ID. |
 | **GET** | /api/tickets/{ticketId} | `tickets.ticket_by_id_endpoint` | Retrieves full details for a specific ticket. |
 | **PATCH** | /api/tickets/{ticketId} | `tickets.ticket_by_id_endpoint` | Edits a ticket (owner only, status must be Open). Sends an edit confirmation email. |
+| **DELETE** | /api/tickets/{ticketId} | `tickets.ticket_by_id_endpoint` | Soft-deletes a ticket (owner only); flagged for agents/admins. |
+| **GET** | /api/tickets/{ticketId}/comments | `tickets.ticket_comments_endpoint` | Lists progress entries on the ticket. Visible to owner / matching-team agent / admin. |
+| **POST** | /api/tickets/{ticketId}/comments | `tickets.ticket_comments_endpoint` | Adds a progress entry (topic, description, optional location). |
+| **POST** | /api/tickets/{ticketId}/finish | `tickets.finish_ticket_endpoint` | Resolves the ticket and writes a resolution entry; emits `TicketResolved`. |
 | **POST** | /api/users/login | `users.user_login` | Upserts the user record on Entra ID login. |
 | **GET** | /api/users?email= | `users.get_user_endpoint` | Retrieves a user by email. |
 | **GET** | /api/users/{userId} | `users.get_user_by_id_endpoint` | Retrieves a user by ID (any authenticated role). |
 
-### Staff portal — `staff.py` (role: staff/admin)
+### Agent portal — `agent.py` (role: agent/admin)
 
 | Method | Endpoint | Blueprint Handler | Description |
 |--------|----------|-------------------|-------------|
-| **GET** | /api/staff/tickets | `staff.get_staff_tickets` | Lists tickets assigned to the logged-in staff member (filters: `status`, `priority`). |
-| **PATCH** | /api/staff/tickets/{ticketId}/status | `staff.update_ticket_status_endpoint` | Updates a ticket status, emits a `TicketStatusChanged` telemetry event, and notifies the submitter. |
+| **GET** | /api/agent/tickets | `agent.get_agent_tickets` | Lists tickets visible to the agent — those whose category matches one of the agent's team categories (filters: `status`, `priority`). |
+| **PATCH** | /api/agent/tickets/{ticketId}/status | `agent.update_ticket_status_endpoint` | Updates a ticket status, emits a `TicketStatusChanged` telemetry event, and notifies the submitter. |
 
-### Admin portal — `admin.py`, `insights.py` (role: admin)
+### Admin portal — `admin.py`, `insights.py`, `teams.py` (role: admin)
 
 | Method | Endpoint | Blueprint Handler | Description |
 |--------|----------|-------------------|-------------|
 | **GET** | /api/manage/tickets | `admin.get_admin_tickets` | Lists all tickets with optional filters for status, category, priority, and date range. |
-| **PATCH** | /api/manage/tickets/{ticketId}/assign | `admin.assign_ticket_endpoint` | Assigns a ticket to staff, emits a `TicketAssigned` telemetry event, and notifies the assignee. |
-| **GET** | /api/manage/staff | `admin.get_staff_list` | Lists all staff members for assignment UIs. |
+| **GET** | /api/manage/agent | `admin.get_agent_list` | Lists all agents (used by assignment UIs). |
 | **GET** | /api/manage/users | `admin.get_all_users_endpoint` | Lists all users (filters: `role`, `q`). |
 | **PATCH** | /api/manage/users/{userId} | `admin.update_user_endpoint` | Updates a user's role or display name. |
 | **GET** | /api/manage/insights?days=30 | `insights.get_insights` | Aggregated ticket metrics powering the UC-11 monitoring dashboard. |
+| **GET / POST / PATCH / DELETE** | /api/manage/teams[/{id}] | `teams.*` | Team CRUD; agents are linked to a team via `team_id` and a team's `category` must match one of the six ticket categories. |
 
 ---
 

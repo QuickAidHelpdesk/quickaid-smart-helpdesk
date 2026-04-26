@@ -56,8 +56,7 @@ interface AuthContextType {
   signupWithPassword: (
     displayName: string,
     email: string,
-    password: string,
-    role: string
+    password: string
   ) => Promise<void>;
   logout: () => void;
   completeRegistration: (displayName: string, role: string) => Promise<void>;
@@ -181,15 +180,10 @@ function AuthProviderInner({ children }: { children: ReactNode }) {
   );
 
   const signupWithPassword = useCallback(
-    async (
-      displayName: string,
-      email: string,
-      password: string,
-      role: string
-    ) => {
+    async (displayName: string, email: string, password: string) => {
       const res = await apiPost<{ success: boolean; user: User }>(
         "/users/signup",
-        { display_name: displayName, email, password, role }
+        { display_name: displayName, email, password }
       );
       persistSession(res.user);
     },

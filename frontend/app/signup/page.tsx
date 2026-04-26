@@ -13,14 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Field,
   FieldError,
   FieldGroup,
@@ -43,9 +35,6 @@ const formSchema = z
       .min(8, "Password must be at least 8 characters.")
       .max(128, "Password must not exceed 128 characters."),
     confirmPassword: z.string().min(1, "Please confirm your password."),
-    role: z.enum(["user", "agent", "admin"], {
-      message: "Please select a valid role.",
-    }),
   })
   .refine((values) => values.password === values.confirmPassword, {
     path: ["confirmPassword"],
@@ -66,7 +55,6 @@ export default function SignupPage() {
       email: "",
       password: "",
       confirmPassword: "",
-      role: "" as SignupFormValues["role"],
     },
   });
 
@@ -82,8 +70,7 @@ export default function SignupPage() {
       await signupWithPassword(
         data.displayName.trim(),
         data.email.trim().toLowerCase(),
-        data.password,
-        data.role
+        data.password
       );
       // persistSession redirects to /dashboard
     } catch (err) {
@@ -194,37 +181,6 @@ export default function SignupPage() {
                         autoComplete="new-password"
                         aria-invalid={fieldState.invalid}
                       />
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
-
-                <Controller
-                  name="role"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="role">Role</FieldLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <SelectTrigger
-                          id="role"
-                          aria-invalid={fieldState.invalid}
-                        >
-                          <SelectValue placeholder="Select your role" />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="agent">Agent</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
                       {fieldState.invalid && (
                         <FieldError errors={[fieldState.error]} />
                       )}

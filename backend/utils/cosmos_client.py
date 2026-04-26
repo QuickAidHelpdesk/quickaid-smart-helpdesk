@@ -11,6 +11,7 @@ USERS_CONTAINER = os.environ["COSMOS_CONTAINER_USERS"]
 STATUS_HISTORY_CONTAINER = os.environ.get("COSMOS_CONTAINER_STATUS_HISTORY", "status_history")
 TEAMS_CONTAINER = os.environ.get("COSMOS_CONTAINER_TEAMS", "teams")
 USERS_TEAMS_CONTAINER = os.environ.get("COSMOS_CONTAINER_USERS_TEAMS", "users_teams")
+COMMENTS_CONTAINER = os.environ.get("COSMOS_CONTAINER_COMMENTS", "ticket_comments")
 
 # Initialize Cosmos client and database
 _client = CosmosClient.from_connection_string(COSMOS_CONNECTION_STRING)
