@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ArrowDown, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Signature } from "@/components/signature";
 import { SiteFooter } from "@/components/site-footer";
@@ -48,16 +47,7 @@ export default function Home() {
             notifications. Built for scale, efficiency, and secure data
             management.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link href="/">
-              <Button
-                size="lg"
-                variant="outline"
-                className="px-8 font-medium"
-              >
-                Learn More <ArrowDown className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
+          <div className="flex justify-center">
             <Button
               size="lg"
               className="px-8 font-medium"

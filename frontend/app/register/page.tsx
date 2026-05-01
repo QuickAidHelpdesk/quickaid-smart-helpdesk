@@ -12,16 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -33,9 +24,6 @@ const formSchema = z.object({
     .string()
     .min(2, "Display name must be at least 2 characters.")
     .max(100, "Display name must not exceed 100 characters."),
-  role: z.enum(["user", "agent", "admin"], {
-    message: "Please select a valid role.",
-  }),
 });
 
 export default function RegisterPage() {
@@ -51,8 +39,6 @@ export default function RegisterPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       displayName: pendingUser?.display_name || "",
-      // we type-cast empty string to trigger validation if left empty
-      role: "" as any,
     },
   });
 
@@ -70,7 +56,7 @@ export default function RegisterPage() {
   async function onSubmit(data: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
-      await completeRegistration(data.displayName.trim(), data.role);
+      await completeRegistration(data.displayName.trim(), "user");
       toast.success("Profile completed successfully!");
       router.push("/dashboard");
     } catch (err: any) {
@@ -112,37 +98,6 @@ export default function RegisterPage() {
                     Your email matches your SSO provider.
                   </FieldDescription> */}
                 </Field>
-
-                <Controller
-                  name="role"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="role">Role</FieldLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <SelectTrigger
-                          id="role"
-                          aria-invalid={fieldState.invalid}
-                        >
-                          <SelectValue placeholder="Select your role" />
-                        </SelectTrigger>
-                        <SelectContent position="popper">
-                          <SelectGroup>
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="agent">Agent</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
 
                 <Controller
                   name="displayName"
