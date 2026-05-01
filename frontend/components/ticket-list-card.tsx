@@ -1,5 +1,6 @@
 import { format } from "date-fns";
-import { Search, Loader2, ArrowRightIcon } from "lucide-react";
+import { Search, Loader2, ArrowRightIcon, Clock } from "lucide-react";
+import { isSlaBreached } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -206,9 +207,17 @@ export function TicketListCard({
                       {ticket.category}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getStatusColor(ticket.status) as any}>
-                        {ticket.status.replace("_", " ")}
-                      </Badge>
+                      <div className="flex flex-col gap-1 items-start">
+                        <Badge variant={getStatusColor(ticket.status) as any}>
+                          {ticket.status.replace("_", " ")}
+                        </Badge>
+                        {isSlaBreached(ticket) && (
+                          <Badge variant="destructive" className="text-xs gap-1">
+                            <Clock className="h-3 w-3" />
+                            Overdue
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant={getPriorityColor(ticket.priority) as any}>

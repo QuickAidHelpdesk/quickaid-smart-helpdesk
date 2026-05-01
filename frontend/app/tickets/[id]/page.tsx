@@ -17,6 +17,7 @@ import {
   TriangleAlert,
   TrendingUp,
   UserCheck,
+  TimerOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -57,7 +58,9 @@ import { TicketResolveDialog } from "@/components/ticket-resolve-dialog";
 import { TicketReopenDialog } from "@/components/ticket-reopen-dialog";
 import { TicketAdminNotes } from "@/components/ticket-admin-notes";
 import { TicketAssignDialog } from "@/components/ticket-assign-dialog";
-import { TicketComment, TicketDetails } from "@/types/ticket";
+import { TicketComment, TicketDetails, formatDuration } from "@/types/ticket";
+import { isSlaBreached, getTicketAgeHours } from "@/lib/utils";
+import { SLA_HOURS } from "@/config/enums";
 
 export default function TicketDetailsPage({
   params,
@@ -353,6 +356,20 @@ export default function TicketDetailsPage({
         </Alert>
       )}
 
+      {isSlaBreached(ticket) && (
+        <Alert variant="destructive">
+          <TimerOff className="h-4 w-4" />
+          <AlertTitle>SLA Breach</AlertTitle>
+          <AlertDescription>
+            This ticket has been open for{" "}
+            <strong>{formatDuration(Math.floor(getTicketAgeHours(ticket.created_at) * 3600))}</strong>
+            , exceeding the{" "}
+            <strong>{SLA_HOURS[ticket.priority] ?? SLA_HOURS["Low"]}h</strong> SLA for{" "}
+            {ticket.priority.toLowerCase()} priority tickets.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main column */}
         <div className="lg:col-span-2 flex flex-col gap-8">
@@ -478,6 +495,30 @@ export default function TicketDetailsPage({
                   </span>
                 </div>
               </div>
+
+              {["Open", "In Progress"].includes(ticket.status) && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Age
+                  </span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Clock
+                      className={`h-4 w-4 ${isSlaBreached(ticket) ? "text-destructive" : "text-muted-foreground"}`}
+                    />
+                    <span
+                      className={`text-sm font-medium ${isSlaBreached(ticket) ? "text-destructive" : ""}`}
+                    >
+                      {formatDuration(Math.floor(getTicketAgeHours(ticket.created_at) * 3600))}
+                    </span>
+                    {isSlaBreached(ticket) && (
+                      <Badge variant="destructive" className="text-xs gap-1">
+                        <TimerOff className="h-3 w-3" />
+                        SLA Breach
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {ticket.resolved_at && (
                 <div className="flex flex-col gap-1">
