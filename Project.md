@@ -253,6 +253,8 @@ QuickAid uses Azure Cosmos DB with the Core SQL API. The database is structured 
 | **reopened_at** | timestamp | nullable | Timestamp of the most recent re-open (UC-17) |
 | **reopened_by** | string | nullable | Email of the owner who re-opened the ticket |
 | **reopen_count** | integer | nullable | Number of times this ticket has been re-opened (defaults to 0; only written on first reopen) |
+| **assigned_to** | string | nullable | Email of the agent/admin the ticket is assigned to (UC-10) |
+| **assigned_to_name** | string | nullable | Display name snapshot of the assigned agent/admin (UC-10) |
 
 ### 3. status_history
 
@@ -379,7 +381,8 @@ The backend is implemented with the Azure Functions V2 programming model using B
 | Method | Endpoint | Blueprint Handler | Description |
 |--------|----------|-------------------|-------------|
 | **GET** | /api/manage/tickets | `admin.get_admin_tickets` | Lists all tickets with optional filters for status, category, priority, and date range. |
-| **GET** | /api/manage/agent | `admin.get_agent_list` | Lists all agents (used by assignment UIs). |
+| **PATCH** | /api/manage/tickets/{ticketId}/assign | `admin.assign_ticket_endpoint` | Assigns ticket to an agent/admin; auto-promotes Open → In Progress; sends assignment email; emits `TicketAssigned` (FR-10-02, FR-10-03). |
+| **GET** | /api/manage/agent | `admin.get_agent_list` | Lists all agents; optional `?category=` filters to team-matching agents (used by assignment UIs). |
 | **GET** | /api/manage/users | `admin.get_all_users_endpoint` | Lists all users (filters: `role`, `q`). |
 | **PATCH** | /api/manage/users/{userId} | `admin.update_user_endpoint` | Updates a user's role or display name. |
 | **GET** | /api/manage/insights?days=30 | `insights.get_insights` | Aggregated ticket metrics powering the UC-11 monitoring dashboard. |

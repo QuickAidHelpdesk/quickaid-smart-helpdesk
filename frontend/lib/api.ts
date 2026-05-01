@@ -70,6 +70,16 @@ export async function apiDelete<T>(path: string): Promise<T> {
   return res.json();
 }
 
+// Ticket Assignment (FR-10-02)
+import { TicketDetails } from "../types/ticket";
+
+export async function assignTicket(ticketId: string, agentEmail: string) {
+  return apiPatch<{ success: boolean; ticket: TicketDetails }>(
+    `/manage/tickets/${ticketId}/assign`,
+    { assigned_to: agentEmail }
+  );
+}
+
 // Teams Management
 import { Team, TeamUser, CreateTeamData, UpdateTeamData } from "../types/team";
 

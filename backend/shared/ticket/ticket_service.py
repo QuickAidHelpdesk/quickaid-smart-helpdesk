@@ -266,6 +266,26 @@ def update_ticket_status(ticket: dict, new_status: str, changed_by: str) -> dict
     return ticket
 
 
+# FR-10-02 / FR-10-03: Assign ticket to an agent and auto-promote Open → In Progress.
+def assign_ticket(ticket: dict, agent_user: dict) -> dict:
+    container = get_container(TICKETS_CONTAINER)
+
+    old_status = ticket["status"]
+    ticket["assigned_to"] = agent_user["email"]
+    ticket["assigned_to_name"] = agent_user["display_name"]
+    ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    if ticket["status"] == "Open":
+        ticket["status"] = "In Progress"
+
+    container.upsert_item(body=ticket)
+
+    if ticket["status"] != old_status:
+        add_status_history(ticket["ticket_id"], old_status, ticket["status"], agent_user["email"])
+
+    return ticket
+
+
 # Apply partial updates to a ticket's editable fields.
 def update_ticket(ticket: dict, updates: dict) -> tuple[dict, dict]:
     container = get_container(TICKETS_CONTAINER)

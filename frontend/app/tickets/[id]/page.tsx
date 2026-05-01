@@ -16,6 +16,7 @@ import {
   Trash2,
   TriangleAlert,
   TrendingUp,
+  UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ import { TicketCommentForm } from "@/components/ticket-comment-form";
 import { TicketResolveDialog } from "@/components/ticket-resolve-dialog";
 import { TicketReopenDialog } from "@/components/ticket-reopen-dialog";
 import { TicketAdminNotes } from "@/components/ticket-admin-notes";
+import { TicketAssignDialog } from "@/components/ticket-assign-dialog";
 import { TicketComment, TicketDetails } from "@/types/ticket";
 
 export default function TicketDetailsPage({
@@ -74,6 +76,7 @@ export default function TicketDetailsPage({
   const [error, setError] = useState<string | null>(null);
   const [resolveOpen, setResolveOpen] = useState(false);
   const [reopenOpen, setReopenOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const fetchTicket = useCallback(async () => {
@@ -258,6 +261,18 @@ export default function TicketDetailsPage({
                 </Badge>
               )}
 
+            {isAdmin && !ticket.is_deleted && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAssignOpen(true)}
+                className="ml-1"
+              >
+                <UserCheck className="h-4 w-4" />
+                Assign
+              </Button>
+            )}
+
             {canFinish && isResolvable && (
               <Button
                 size="sm"
@@ -435,6 +450,23 @@ export default function TicketDetailsPage({
                 </div>
               </div>
 
+              {ticket.assigned_to && (
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Assigned to
+                  </span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <UserCheck className="h-4 w-4 text-muted-foreground" />
+                    <span
+                      className="text-sm font-medium truncate"
+                      title={ticket.assigned_to}
+                    >
+                      {ticket.assigned_to_name || ticket.assigned_to}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Category
@@ -486,6 +518,15 @@ export default function TicketDetailsPage({
           fetchTicket();
           fetchComments();
         }}
+      />
+
+      <TicketAssignDialog
+        ticketId={ticket.ticket_id}
+        ticketCategory={ticket.category}
+        currentAssignee={ticket.assigned_to}
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        onAssigned={fetchTicket}
       />
     </div>
   );

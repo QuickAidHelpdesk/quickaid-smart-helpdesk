@@ -31,6 +31,8 @@ export interface TicketDetails {
   reopened_at?: string | null;
   reopened_by?: string | null;
   reopen_count?: number;
+  assigned_to?: string | null;
+  assigned_to_name?: string | null;
 }
 
 export interface AdminNote {
