@@ -1,7 +1,7 @@
 """Validation for ticket comments / progress entries."""
 
 
-VALID_ENTRY_TYPES = ["comment", "resolution"]
+VALID_ENTRY_TYPES = ["comment", "resolution", "escalation", "reopen"]
 
 
 def validate_comment(data: dict) -> list:

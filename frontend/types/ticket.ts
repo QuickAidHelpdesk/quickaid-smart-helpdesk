@@ -1,12 +1,12 @@
 export interface TicketComment {
   comment_id: string;
   ticket_id: string;
-  entry_type: "comment" | "resolution";
+  entry_type: "comment" | "resolution" | "escalation" | "reopen";
   topic: string;
   description: string;
   location?: string | null;
   author_email: string;
-  author_role: "user" | "agent" | "admin";
+  author_role: "user" | "agent" | "admin" | "system";
   author_display_name: string;
   created_at: string;
   resolved_in_seconds?: number | null;
@@ -26,6 +26,21 @@ export interface TicketDetails {
   is_deleted?: boolean;
   deleted_at?: string | null;
   deleted_by?: string | null;
+  last_escalated_at?: string | null;
+  escalation_count?: number;
+  reopened_at?: string | null;
+  reopened_by?: string | null;
+  reopen_count?: number;
+}
+
+export interface AdminNote {
+  note_id: string;
+  ticket_id: string;
+  author_id: string;
+  author_email: string;
+  author_display_name: string;
+  content: string;
+  created_at: string;
 }
 
 export function formatDuration(seconds: number | null | undefined): string {

@@ -86,6 +86,7 @@ As an optional enhancement, the proposed system integrates Azure Application Ins
 
 - Azure Functions (Python 3.9+) using the V2 programming model with Blueprints
 - HTTP-triggered serverless functions organised by service: `tickets`, `users`, `agent`, `admin`, `insights`, `teams`
+- Timer-triggered serverless function (`escalation`) for scheduled background work (NCRONTAB schedule)
 - Azure Functions Core Tools for local development and testing
 
 ### III. Database
@@ -96,7 +97,7 @@ As an optional enhancement, the proposed system integrates Azure Application Ins
 ### IV. Email Service
 
 - Azure Communication Services (Email) for transactional email delivery
-- Templated emails for ticket confirmation, edits, status updates, and staff assignment notifications
+- Templated emails for ticket confirmation, edits, status updates, staff assignment notifications, and priority escalation alerts
 
 ### V. Security
 
@@ -107,7 +108,7 @@ As an optional enhancement, the proposed system integrates Azure Application Ins
 ### VI. Monitoring
 
 - Azure Application Insights for telemetry and performance tracking
-- Custom events: `TicketSubmitted`, `TicketStatusChanged`, `TicketResolved`
+- Custom events: `TicketSubmitted`, `TicketStatusChanged`, `TicketResolved`, `TicketReopened`, `TicketEscalated`
 - In-app monitoring dashboard (UC-11) at `/admin/insights` backed by `/api/manage/insights`
 
 ### VII. Deployment
@@ -174,6 +175,10 @@ This section will discuss all the actors involved in the QuickAid system with a 
 | **FR-12-03** | | | The system shall reject comment submissions from users who do not have visibility on the ticket with HTTP 403. |
 | **FR-14-01** | **UC-14** | **Delete Own Ticket (Soft)** | The system shall allow a ticket owner to soft-delete their own ticket. Deleted tickets are flagged with `is_deleted`, `deleted_at`, and `deleted_by`, are hidden from the owner's ticket list, and remain visible to agents and admins with a "Deleted by user" indicator. |
 | **FR-14-02** | | | The system shall reject delete requests from non-owners with HTTP 403, and reject deleting an already-deleted ticket with HTTP 409. |
+| **FR-17-01** | **UC-17** | **Re-open Resolved Ticket** | The system shall allow the ticket owner to re-open a ticket whose status is `Resolved` via `POST /api/tickets/{id}/reopen`. Re-opening sets `status="Open"`, clears `resolved_at`, records `reopened_at` and `reopened_by`, and increments `reopen_count`. |
+| **FR-17-02** | | | The system shall reject re-open requests from non-owners with HTTP 403 and re-open requests on soft-deleted tickets with HTTP 409. |
+| **FR-17-03** | | | The system shall reject re-open requests for tickets whose current status is not `Resolved` with HTTP 409. |
+| **FR-17-04** | | | The system shall write a `reopen` entry (`entry_type="reopen"`) to `ticket_comments` capturing the submitter's reason, send the existing status-update email to the submitter, and emit a `TicketReopened` Application Insights event including `ticket_id`, `previous_status`, `reopened_by`, `reopen_count`, and `category`. |
 
 ## Ticket Management Module
 
@@ -196,6 +201,15 @@ This section will discuss all the actors involved in the QuickAid system with a 
 | **FR-13-01** | **UC-13** | **Finish Ticket** | The system shall allow agents (matching team category) and admins to finish a ticket via a single action that (a) sets status to Resolved, (b) writes a resolution entry to `ticket_comments` containing topic, description, optional location, finisher email, and time-to-resolve in seconds, and (c) sends the existing status-update email to the submitter. |
 | **FR-13-02** | | | The system shall reject finish requests on tickets already in `Resolved` or `Closed` state with HTTP 409. |
 | **FR-13-03** | | | The system shall emit a `TicketResolved` Application Insights event each time a ticket is finished. |
+| **FR-15-01** | **UC-15** | **Auto-Escalate Stale Tickets** | The system shall run a timer-triggered Azure Function on a configurable NCRONTAB schedule (`ESCALATION_TIMER_SCHEDULE`) that scans all `Open`, non-deleted tickets and bumps the priority of any ticket whose current priority has not changed for at least `ESCALATION_DAYS_THRESHOLD` days. Priority order: Low → Medium → High → Critical. |
+| **FR-15-02** | | | The system shall cap auto-escalation at `Critical` and never escalate `In Progress`, `Resolved`, `Closed`, or soft-deleted tickets. |
+| **FR-15-03** | | | The system shall record each escalation by (a) updating `last_escalated_at`, `escalation_count`, and `priority` on the ticket, and (b) writing a system-authored entry (`entry_type="escalation"`, `author_role="system"`) to `ticket_comments`. |
+| **FR-15-04** | | | The system shall send an escalation notification email to the ticket submitter and to every agent in a team whose category matches the ticket's category. Email failures shall not block the priority bump. |
+| **FR-15-05** | | | The system shall emit a `TicketEscalated` Application Insights event for each successful escalation containing `ticket_id`, `old_priority`, `new_priority`, `escalation_count`, `days_since_last_change`, and `category`. |
+| **FR-16-01** | **UC-16** | **Admin Internal Notes** | The system shall provide an admin-only notes channel on every ticket, distinct from the user-visible comment thread. Notes are stored in the `admin_notes` Cosmos container (partition key `/ticket_id`) and are accessible only via `/api/manage/tickets/{ticketId}/notes` endpoints, gated by `role=admin`. |
+| **FR-16-02** | | | The system shall validate note content (3–2000 characters) and stamp each note with `author_id`, `author_email`, `author_display_name`, and `created_at`. |
+| **FR-16-03** | | | The system shall allow any admin to delete an admin note via `DELETE /api/manage/tickets/{ticketId}/notes/{noteId}`. Notes are hard-deleted because they never leave the admin surface. |
+| **FR-16-04** | | | The system shall hide internal admin notes from all non-admin users — they must not be returned by any `/api/tickets/*` or `/api/agent/*` endpoint, and the frontend shall render them only when `user.role === "admin"`. |
 | **FR-11-01** | **UC-11** | **View System Performance (Application Insights)** | The system shall integrate Azure Application Insights to monitor application performance, request rates, and response times. |
 | **FR-11-02** | | | The system shall log custom events for ticket submission, retrieval, and status changes for analytics purposes. |
 | **FR-11-03** | | | The system shall provide a monitoring dashboard showing error rates, dependency failures, and user activity metrics. |
@@ -234,6 +248,11 @@ QuickAid uses Azure Cosmos DB with the Core SQL API. The database is structured 
 | **is_deleted** | boolean | — | True if the owner soft-deleted the ticket; hidden from owner's list, still visible to agents/admins |
 | **deleted_at** | timestamp | nullable | Timestamp of soft-delete |
 | **deleted_by** | string | nullable | Email of the user who deleted the ticket |
+| **last_escalated_at** | timestamp | nullable | Timestamp of the most recent auto-escalation (UC-15) |
+| **escalation_count** | integer | nullable | Number of times this ticket has been auto-escalated (defaults to 0; only written on first escalation) |
+| **reopened_at** | timestamp | nullable | Timestamp of the most recent re-open (UC-17) |
+| **reopened_by** | string | nullable | Email of the owner who re-opened the ticket |
+| **reopen_count** | integer | nullable | Number of times this ticket has been re-opened (defaults to 0; only written on first reopen) |
 
 ### 3. status_history
 
@@ -261,32 +280,34 @@ QuickAid uses Azure Cosmos DB with the Core SQL API. The database is structured 
 
 ### 5. ticket_comments
 
-Implemented. Partition key `/ticket_id`. Stores append-only progress entries on each ticket — both free-form `comment` entries from owner / agent / admin and the special `resolution` entry written by the finish flow.
+Implemented. Partition key `/ticket_id`. Stores append-only progress entries on each ticket — free-form `comment` entries from owner / agent / admin, the special `resolution` entry written by the finish flow, and `escalation` entries written by the auto-escalation timer.
 
 | Field | Type | Constraint | Description |
 |-------|------|-----------|-------------|
 | **comment_id** | string | PK | Unique identifier for the entry |
 | **ticket_id** | string | FK, partition key | References tickets.ticket_id |
-| **entry_type** | enum | — | `comment` or `resolution` |
+| **entry_type** | enum | — | `comment`, `resolution`, `escalation`, or `reopen` |
 | **topic** | string | — | Short topic / heading (3–100 chars) |
 | **description** | string | — | Body of the entry (3–1000 chars) |
 | **location** | string | nullable | Optional place tag (≤200 chars) |
-| **author_email** | string | — | Email of the entry author |
-| **author_role** | enum | — | `user`, `agent`, or `admin` at the time of posting |
+| **author_email** | string | — | Email of the entry author (or `system@quickaid` for auto-escalation entries) |
+| **author_role** | enum | — | `user`, `agent`, `admin`, or `system` (the latter reserved for auto-escalation entries) |
 | **author_display_name** | string | — | Display name snapshot |
 | **created_at** | timestamp | — | Entry creation timestamp |
 | **resolved_in_seconds** | integer | nullable | Time-to-resolve in seconds (only set for `resolution` entries) |
 
-### 6. admin_notes (planned)
+### 6. admin_notes
 
-Not yet implemented in code. Reserved for a future "internal admin-only notes" feature distinct from `ticket_comments`.
+Implemented (UC-16). Partition key `/ticket_id`. Stores internal admin-only notes that are completely separate from `ticket_comments` and are accessible only to users with role `admin`.
 
 | Field | Type | Constraint | Description |
 |-------|------|-----------|-------------|
 | **note_id** | string | PK | Unique identifier for the admin note |
-| **ticket_id** | string | FK | References tickets.ticket_id |
+| **ticket_id** | string | FK, partition key | References tickets.ticket_id |
 | **author_id** | string | FK | References users.user_id (admin who wrote the note) |
-| **content** | string | — | Content of the internal note |
+| **author_email** | string | — | Email snapshot of the authoring admin |
+| **author_display_name** | string | — | Display name snapshot of the authoring admin |
+| **content** | string | — | Body of the internal note (3–2000 chars) |
 | **created_at** | timestamp | — | Timestamp when the note was created |
 
 ## Relationships
@@ -296,6 +317,7 @@ Not yet implemented in code. Reserved for a future "internal admin-only notes" f
 | users → tickets | One-to-Many (1:N) | One user can submit many helpdesk tickets |
 | tickets → status_history | One-to-Many (1:N) | One ticket can have many status change records |
 | tickets → ticket_comments | One-to-Many (1:N) | One ticket can have many progress entries (comments + one resolution) |
+| tickets → admin_notes | One-to-Many (1:N) | One ticket can have many internal admin-only notes |
 | tickets → email_logs | One-to-Many (1:N) | One ticket can trigger many email notifications |
 | teams → users (agents) | One-to-Many (1:N) | One team can have many agent users assigned via `team_id` |
 
@@ -315,7 +337,9 @@ The system follows a serverless, event-driven architecture leveraging Azure clou
 **Azure Functions** → Azure Key Vault (Secret Retrieval via Managed Identity)
 **Azure Functions** → Azure Application Insights (Monitoring & Telemetry)
 
-The frontend is a static web application hosted on Azure App Service that communicates with the backend through RESTful HTTP endpoints exposed by Azure Functions. The backend functions handle all business logic including ticket creation, retrieval, status updates, and email dispatch. All sensitive credentials are retrieved from Azure Key Vault at runtime, and all application telemetry is forwarded to Application Insights for monitoring.
+**Timer Trigger (NCRONTAB)** → Azure Functions (`escalation`) → Azure Cosmos DB (scan + update) → Azure Communication Services (notify) → Azure Application Insights (`TicketEscalated`)
+
+The frontend is a static web application hosted on Azure App Service that communicates with the backend through RESTful HTTP endpoints exposed by Azure Functions. The backend functions handle all business logic including ticket creation, retrieval, status updates, email dispatch, and scheduled background work such as auto-escalation of stale tickets. All sensitive credentials are retrieved from Azure Key Vault at runtime, and all application telemetry is forwarded to Application Insights for monitoring.
 
 *[Insert Architecture Diagram here]*
 
@@ -338,6 +362,7 @@ The backend is implemented with the Azure Functions V2 programming model using B
 | **GET** | /api/tickets/{ticketId}/comments | `tickets.ticket_comments_endpoint` | Lists progress entries on the ticket. Visible to owner / matching-team agent / admin. |
 | **POST** | /api/tickets/{ticketId}/comments | `tickets.ticket_comments_endpoint` | Adds a progress entry (topic, description, optional location). |
 | **POST** | /api/tickets/{ticketId}/finish | `tickets.finish_ticket_endpoint` | Resolves the ticket and writes a resolution entry; emits `TicketResolved`. |
+| **POST** | /api/tickets/{ticketId}/reopen | `tickets.reopen_ticket_endpoint` | Owner re-opens a Resolved ticket; clears `resolved_at`, bumps `reopen_count`, writes a `reopen` entry, emits `TicketReopened` (UC-17). |
 | **POST** | /api/users/login | `users.user_login` | Upserts the user record on Entra ID login. |
 | **GET** | /api/users?email= | `users.get_user_endpoint` | Retrieves a user by email. |
 | **GET** | /api/users/{userId} | `users.get_user_by_id_endpoint` | Retrieves a user by ID (any authenticated role). |
@@ -349,7 +374,7 @@ The backend is implemented with the Azure Functions V2 programming model using B
 | **GET** | /api/agent/tickets | `agent.get_agent_tickets` | Lists tickets visible to the agent — those whose category matches one of the agent's team categories (filters: `status`, `priority`). |
 | **PATCH** | /api/agent/tickets/{ticketId}/status | `agent.update_ticket_status_endpoint` | Updates a ticket status, emits a `TicketStatusChanged` telemetry event, and notifies the submitter. |
 
-### Admin portal — `admin.py`, `insights.py`, `teams.py` (role: admin)
+### Admin portal — `admin.py`, `admin_notes.py`, `insights.py`, `teams.py` (role: admin)
 
 | Method | Endpoint | Blueprint Handler | Description |
 |--------|----------|-------------------|-------------|
@@ -358,6 +383,8 @@ The backend is implemented with the Azure Functions V2 programming model using B
 | **GET** | /api/manage/users | `admin.get_all_users_endpoint` | Lists all users (filters: `role`, `q`). |
 | **PATCH** | /api/manage/users/{userId} | `admin.update_user_endpoint` | Updates a user's role or display name. |
 | **GET** | /api/manage/insights?days=30 | `insights.get_insights` | Aggregated ticket metrics powering the UC-11 monitoring dashboard. |
+| **GET / POST** | /api/manage/tickets/{ticketId}/notes | `admin_notes.admin_notes_endpoint` | List or add internal admin notes on a ticket (UC-16). |
+| **DELETE** | /api/manage/tickets/{ticketId}/notes/{noteId} | `admin_notes.admin_note_delete_endpoint` | Delete an admin note (hard-delete). |
 | **GET / POST / PATCH / DELETE** | /api/manage/teams[/{id}] | `teams.*` | Team CRUD; agents are linked to a team via `team_id` and a team's `category` must match one of the six ticket categories. |
 
 ---

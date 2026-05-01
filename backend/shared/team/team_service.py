@@ -154,14 +154,14 @@ def get_users_in_team(team_id: str) -> list:
 def get_teams_for_user(user_id: str) -> list:
     ut_container = get_container(USERS_TEAMS_CONTAINER)
     t_container = get_container(TEAMS_CONTAINER)
-    
+
     query = "SELECT c.team_id FROM c WHERE c.user_id = @user_id"
     params = [{"name": "@user_id", "value": user_id}]
     mappings = list(ut_container.query_items(query=query, parameters=params, enable_cross_partition_query=True))
-    
+
     if not mappings:
         return []
-        
+
     team_ids = [m["team_id"] for m in mappings]
     teams = []
     for tid in team_ids:
@@ -169,3 +169,47 @@ def get_teams_for_user(user_id: str) -> list:
         if team:
             teams.append(team)
     return teams
+
+
+def get_agents_for_category(category: str) -> list:
+    """Return user docs (email, display_name, user_id) for every agent whose
+    team's category matches `category`. Used by the auto-escalation timer to
+    fan out notification emails."""
+    if not category:
+        return []
+
+    t_container = get_container(TEAMS_CONTAINER)
+    ut_container = get_container(USERS_TEAMS_CONTAINER)
+    u_container = get_container(USERS_CONTAINER)
+
+    teams = list(t_container.query_items(
+        query="SELECT c.team_id FROM c WHERE c.category = @category",
+        parameters=[{"name": "@category", "value": category}],
+        enable_cross_partition_query=True,
+    ))
+    if not teams:
+        return []
+
+    seen_user_ids = set()
+    agents = []
+    for team in teams:
+        mappings = list(ut_container.query_items(
+            query="SELECT c.user_id FROM c WHERE c.team_id = @team_id",
+            parameters=[{"name": "@team_id", "value": team["team_id"]}],
+            enable_cross_partition_query=True,
+        ))
+        for m in mappings:
+            uid = m.get("user_id")
+            if not uid or uid in seen_user_ids:
+                continue
+            seen_user_ids.add(uid)
+
+            users = list(u_container.query_items(
+                query="SELECT c.user_id, c.display_name, c.email, c.role FROM c WHERE c.user_id = @user_id AND c.role = 'agent'",
+                parameters=[{"name": "@user_id", "value": uid}],
+                enable_cross_partition_query=True,
+            ))
+            if users:
+                agents.append(users[0])
+
+    return agents

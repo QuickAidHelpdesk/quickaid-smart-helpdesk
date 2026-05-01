@@ -12,8 +12,10 @@ import {
   AlertCircle,
   CheckCircle2,
   Info,
+  RotateCcw,
   Trash2,
   TriangleAlert,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -51,6 +53,8 @@ import { useRouter } from "next/navigation";
 import { TicketProgressTimeline } from "@/components/ticket-progress-timeline";
 import { TicketCommentForm } from "@/components/ticket-comment-form";
 import { TicketResolveDialog } from "@/components/ticket-resolve-dialog";
+import { TicketReopenDialog } from "@/components/ticket-reopen-dialog";
+import { TicketAdminNotes } from "@/components/ticket-admin-notes";
 import { TicketComment, TicketDetails } from "@/types/ticket";
 
 export default function TicketDetailsPage({
@@ -69,6 +73,7 @@ export default function TicketDetailsPage({
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [resolveOpen, setResolveOpen] = useState(false);
+  const [reopenOpen, setReopenOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const fetchTicket = useCallback(async () => {
@@ -117,6 +122,8 @@ export default function TicketDetailsPage({
   const canPost = isOwner || isAdmin || isAgent;
   const canFinish = (isAdmin || isAgent) && !isOwner;
   const canDelete = isOwner && !ticket?.is_deleted;
+  const canReopen =
+    isOwner && !ticket?.is_deleted && ticket?.status === "Resolved";
   const isResolvable = ticket
     ? ["Open", "In Progress"].includes(ticket.status)
     : false;
@@ -262,6 +269,18 @@ export default function TicketDetailsPage({
               </Button>
             )}
 
+            {canReopen && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setReopenOpen(true)}
+                className="ml-1 border-blue-500 text-blue-700 hover:bg-blue-500/10 dark:text-blue-400"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Re-open
+              </Button>
+            )}
+
             {canDelete && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -329,12 +348,31 @@ export default function TicketDetailsPage({
                   <User className="h-5 w-5 text-muted-foreground" />
                   Description
                 </CardTitle>
-                <Badge
-                  variant={getPriorityColor(ticket.priority)}
-                  className="capitalize"
-                >
-                  {ticket.priority} Priority
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {(ticket.escalation_count ?? 0) > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="border-amber-500 text-amber-700 dark:text-amber-400 bg-amber-500/10"
+                      title={
+                        ticket.last_escalated_at
+                          ? `Last escalated ${format(
+                              new Date(ticket.last_escalated_at),
+                              "MMM d, yyyy 'at' HH:mm"
+                            )}`
+                          : undefined
+                      }
+                    >
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      Escalated x{ticket.escalation_count}
+                    </Badge>
+                  )}
+                  <Badge
+                    variant={getPriorityColor(ticket.priority)}
+                    className="capitalize"
+                  >
+                    {ticket.priority} Priority
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-5 py-3">
@@ -364,6 +402,8 @@ export default function TicketDetailsPage({
               </CardContent>
             </Card>
           )}
+
+          {isAdmin && <TicketAdminNotes ticketId={ticket.ticket_id} />}
         </div>
 
         {/* Sidebar */}
@@ -433,6 +473,16 @@ export default function TicketDetailsPage({
         open={resolveOpen}
         onOpenChange={setResolveOpen}
         onResolved={() => {
+          fetchTicket();
+          fetchComments();
+        }}
+      />
+
+      <TicketReopenDialog
+        ticketId={ticket.ticket_id}
+        open={reopenOpen}
+        onOpenChange={setReopenOpen}
+        onReopened={() => {
           fetchTicket();
           fetchComments();
         }}

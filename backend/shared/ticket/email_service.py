@@ -191,6 +191,77 @@ def send_edit_confirmation_email(
     logger.info("Edit confirmation email sent to %s for ticket %s", to_email, ticket_id)
 
 
+# ── Auto-escalation notification (submitter + matching agents) ─────
+def send_escalation_email(
+    to_email: str,
+    ticket_id: str,
+    subject: str,
+    old_priority: str,
+    new_priority: str,
+    recipient_role: str,
+) -> None:
+    """Send a priority-escalation notification.
+
+    `recipient_role` is "user" for the ticket submitter or "agent" for
+    matching-team agents — it switches the headline and body copy."""
+
+    if recipient_role == "agent":
+        headline = "QuickAid — Ticket Escalated"
+        intro = (
+            "An open ticket in your team has been auto-escalated due to "
+            "inactivity and now needs attention."
+        )
+        cta = "Please log in to the Agent Portal to take action."
+        subject_line = f"[{ticket_id}] Escalated to {new_priority} — {subject}"
+    else:
+        headline = "QuickAid — Your Ticket Was Escalated"
+        intro = (
+            "Your ticket has been waiting longer than expected, so its "
+            "priority has been automatically increased."
+        )
+        cta = "We will follow up with you as soon as an agent reviews it."
+        subject_line = f"[{ticket_id}] Priority Increased to {new_priority}"
+
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #b45309; color: white; padding: 20px; text-align: center;">
+            <h1 style="margin: 0; font-size: 22px;">{headline}</h1>
+        </div>
+        <div style="padding: 24px; background: #f9fafb; border: 1px solid #e5e7eb;">
+            <p>{intro}</p>
+            <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                <tr>
+                    <td style="padding: 8px 12px; font-weight: bold; background: #e5e7eb;">Ticket ID</td>
+                    <td style="padding: 8px 12px; background: #ffffff;">{ticket_id}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 12px; font-weight: bold; background: #e5e7eb;">Subject</td>
+                    <td style="padding: 8px 12px; background: #ffffff;">{subject}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 12px; font-weight: bold; background: #e5e7eb;">Previous Priority</td>
+                    <td style="padding: 8px 12px; background: #ffffff;">{old_priority}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 12px; font-weight: bold; background: #e5e7eb;">New Priority</td>
+                    <td style="padding: 8px 12px; background: #ffffff; font-weight: bold; color: #b45309;">{new_priority}</td>
+                </tr>
+            </table>
+            <p style="color: #6b7280; font-size: 14px;">{cta}</p>
+        </div>
+        <div style="padding: 12px; text-align: center; color: #9ca3af; font-size: 12px;">
+            QuickAid Smart Campus Helpdesk
+        </div>
+    </div>
+    """
+
+    _send_email(to_email, subject_line, html)
+    logger.info(
+        "Escalation email sent to %s for ticket %s (%s -> %s, role=%s)",
+        to_email, ticket_id, old_priority, new_priority, recipient_role,
+    )
+
+
 # ── FR-09-01: Assignment notification to agent ─────────────────────
 def send_assignment_email(
     to_email: str, ticket_id: str, subject: str

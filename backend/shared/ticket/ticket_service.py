@@ -289,6 +289,25 @@ def update_ticket(ticket: dict, updates: dict) -> tuple[dict, dict]:
 
 
 
+# UC-17 / FR-17: Owner re-opens a Resolved ticket. Resets status to Open,
+# clears resolved_at, and bumps a reopen counter for monitoring.
+def reopen_ticket(ticket: dict, reopened_by: str) -> dict:
+    container = get_container(TICKETS_CONTAINER)
+
+    old_status = ticket["status"]
+    ticket["status"] = "Open"
+    ticket["resolved_at"] = None
+    ticket["reopened_at"] = datetime.now(timezone.utc).isoformat()
+    ticket["reopened_by"] = reopened_by
+    ticket["reopen_count"] = int(ticket.get("reopen_count") or 0) + 1
+    ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    container.upsert_item(body=ticket)
+
+    add_status_history(ticket["ticket_id"], old_status, "Open", reopened_by)
+    return ticket
+
+
 # Soft-delete a ticket — flagged for agents/admins, hidden from owner's list.
 def soft_delete_ticket(ticket: dict, deleted_by: str) -> dict:
     container = get_container(TICKETS_CONTAINER)

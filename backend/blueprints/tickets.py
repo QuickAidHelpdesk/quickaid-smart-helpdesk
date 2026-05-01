@@ -29,6 +29,7 @@ from shared.ticket.ticket_service import (
     update_ticket,
     update_ticket_status,
     soft_delete_ticket,
+    reopen_ticket,
 )
 from shared.ticket.comment_service import (
     create_comment,
@@ -490,6 +491,113 @@ def finish_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     return json_response({
         "success": True,
         "message": f"Ticket {ticket_id} resolved.",
+        "ticket": updated_ticket,
+        "comment": comment,
+    })
+
+
+# ── POST /api/tickets/{ticketId}/reopen ─────────────────────────────
+# UC-17 / FR-17-01: owner re-opens a Resolved ticket if the issue persists.
+# Resets status to Open, clears resolved_at, bumps reopen_count, writes a
+# `reopen` entry to ticket_comments, sends the status-update email, and
+# emits a `TicketReopened` Application Insights event.
+@bp.route(
+    route="tickets/{ticketId}/reopen",
+    methods=["POST", "OPTIONS"],
+    auth_level=func.AuthLevel.ANONYMOUS,
+)
+def reopen_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+
+    if req.method == "OPTIONS":
+        return preflight_response()
+
+    user, err = require_role(req, ["user", "agent", "admin"])
+    if err:
+        return err
+
+    ticket_id = req.route_params.get("ticketId")
+
+    try:
+        ticket = get_ticket_by_id(ticket_id)
+    except Exception as e:
+        logger.error("Failed to retrieve ticket %s: %s", ticket_id, e)
+        return error_response("Failed to retrieve ticket.", 500)
+
+    if not ticket:
+        return error_response("Ticket not found.", 404)
+
+    # FR-17-02: only the ticket owner may re-open their own ticket.
+    if ticket["email"].lower() != user["email"].lower():
+        return error_response("You can only re-open your own tickets.", 403)
+
+    if ticket.get("is_deleted"):
+        return error_response("Deleted tickets cannot be re-opened.", 409)
+
+    # FR-17-03: only Resolved tickets may be re-opened. Closed is terminal.
+    if ticket["status"] != "Resolved":
+        return error_response(
+            f"Only Resolved tickets can be re-opened (current: '{ticket['status']}').",
+            409,
+        )
+
+    try:
+        data = req.get_json()
+    except ValueError:
+        data = {}
+
+    errors = validate_comment(data) if data else []
+    if errors:
+        return json_response({"error": "Validation failed", "details": errors}, 400)
+
+    previous_status = ticket["status"]
+
+    try:
+        updated_ticket = reopen_ticket(ticket, user["email"])
+    except Exception as e:
+        logger.error("Failed to re-open ticket %s: %s", ticket_id, e)
+        return error_response("Failed to re-open ticket.", 500)
+
+    # Write a `reopen` entry on the timeline (best-effort).
+    comment = None
+    try:
+        topic = (data.get("topic") or "Ticket re-opened").strip() if data else "Ticket re-opened"
+        description = (
+            data.get("description").strip()
+            if data and data.get("description")
+            else "The submitter re-opened this ticket — the original issue is not fully resolved."
+        )
+        location = data.get("location") if data else None
+        comment = create_comment(
+            ticket_id=ticket_id,
+            entry_type="reopen",
+            topic=topic,
+            description=description,
+            location=location,
+            author=user,
+        )
+    except Exception as e:
+        logger.error("Failed to write reopen entry for %s: %s", ticket_id, e)
+
+    track_event("TicketReopened", {
+        "ticket_id": updated_ticket["ticket_id"],
+        "previous_status": previous_status,
+        "reopened_by": user["email"],
+        "reopen_count": updated_ticket.get("reopen_count", 1),
+        "category": updated_ticket.get("category"),
+    })
+
+    try:
+        send_status_update_email(
+            to_email=updated_ticket["email"],
+            ticket_id=updated_ticket["ticket_id"],
+            new_status=updated_ticket["status"],
+        )
+    except Exception as e:
+        logger.error("Status update email failed for re-opened ticket %s: %s", ticket_id, e)
+
+    return json_response({
+        "success": True,
+        "message": f"Ticket {ticket_id} re-opened.",
         "ticket": updated_ticket,
         "comment": comment,
     })

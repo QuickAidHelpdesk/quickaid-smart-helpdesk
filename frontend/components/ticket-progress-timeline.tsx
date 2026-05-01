@@ -6,7 +6,9 @@ import {
   Loader2,
   MapPin,
   MessageSquare,
+  RotateCcw,
   Timer,
+  TrendingUp,
 } from "lucide-react";
 import {
   Card,
@@ -80,6 +82,8 @@ export function TicketProgressTimeline({
           <ol className="flex flex-col gap-5">
             {comments.map((c, idx) => {
               const isResolution = c.entry_type === "resolution";
+              const isEscalation = c.entry_type === "escalation";
+              const isReopen = c.entry_type === "reopen";
               return (
                 <li key={c.comment_id} className="flex flex-col gap-2">
                   {idx > 0 && <Separator className="mb-2" />}
@@ -87,6 +91,10 @@ export function TicketProgressTimeline({
                     className={
                       isResolution
                         ? "rounded-lg border border-green-500/40 bg-green-500/5 p-4"
+                        : isEscalation
+                        ? "rounded-lg border border-amber-500/40 bg-amber-500/5 p-4"
+                        : isReopen
+                        ? "rounded-lg border border-blue-500/40 bg-blue-500/5 p-4"
                         : "rounded-lg border bg-card p-4"
                     }
                   >
@@ -96,6 +104,10 @@ export function TicketProgressTimeline({
                           className={
                             isResolution
                               ? "bg-green-500/15 text-green-700 dark:text-green-400 text-xs font-semibold"
+                              : isEscalation
+                              ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 text-xs font-semibold"
+                              : isReopen
+                              ? "bg-blue-500/15 text-blue-700 dark:text-blue-400 text-xs font-semibold"
                               : "bg-primary/10 text-primary text-xs font-semibold"
                           }
                         >
@@ -117,6 +129,22 @@ export function TicketProgressTimeline({
                             >
                               <CheckCircle2 className="h-3 w-3 mr-1" />
                               Resolution
+                            </Badge>
+                          ) : isEscalation ? (
+                            <Badge
+                              variant="outline"
+                              className="border-amber-500 text-amber-700 dark:text-amber-400 bg-amber-500/10"
+                            >
+                              <TrendingUp className="h-3 w-3 mr-1" />
+                              Auto-escalated
+                            </Badge>
+                          ) : isReopen ? (
+                            <Badge
+                              variant="outline"
+                              className="border-blue-500 text-blue-700 dark:text-blue-400 bg-blue-500/10"
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" />
+                              Re-opened
                             </Badge>
                           ) : (
                             <Badge variant={roleBadgeVariant(c.author_role)}>
