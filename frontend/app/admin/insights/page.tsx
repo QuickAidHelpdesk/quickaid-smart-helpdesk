@@ -43,6 +43,22 @@ const STATUS_COLORS: Record<string, string> = {
   Unknown: "var(--chart-5)",
 };
 
+const CATEGORY_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
+
+const PRIORITY_COLORS: Record<string, string> = {
+  Low: "var(--chart-2)",
+  Medium: "var(--chart-3)",
+  High: "var(--chart-1)",
+  Critical: "hsl(var(--destructive))",
+  Unknown: "var(--chart-5)",
+};
+
 const statusConfig: ChartConfig = {
   count: { label: "Tickets" },
 };
@@ -194,10 +210,13 @@ function InsightsContent() {
         <Card>
           <CardHeader>
             <CardTitle>Status distribution</CardTitle>
-            <CardDescription>Share of tickets by current status.</CardDescription>
+            <CardDescription>
+              Share of tickets by current status. Each segment shows how many
+              tickets are in that stage of the workflow.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={statusConfig} className="h-[280px] w-full">
+            <ChartContainer config={statusConfig} className="h-60 w-full">
               <PieChart>
                 <ChartTooltip content={<ChartTooltipContent nameKey="key" />} />
                 <Pie
@@ -205,7 +224,7 @@ function InsightsContent() {
                   dataKey="count"
                   nameKey="key"
                   innerRadius={55}
-                  outerRadius={100}
+                  outerRadius={95}
                   paddingAngle={2}
                 >
                   {statusChartData.map((entry) => (
@@ -214,6 +233,17 @@ function InsightsContent() {
                 </Pie>
               </PieChart>
             </ChartContainer>
+            <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2">
+              {statusChartData.map((entry) => (
+                <div key={entry.key} className="flex items-center gap-2 text-sm">
+                  <svg className="size-2.5 shrink-0" viewBox="0 0 10 10" aria-hidden>
+                    <circle cx="5" cy="5" r="5" fill={entry.fill} />
+                  </svg>
+                  <span className="text-muted-foreground">{entry.key}</span>
+                  <span className="font-semibold tabular-nums">{entry.count}</span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -230,7 +260,11 @@ function InsightsContent() {
                 <XAxis dataKey="key" tickLine={false} axisLine={false} />
                 <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                <Bar dataKey="count" radius={4}>
+                  {by_category.map((_, idx) => (
+                    <Cell key={idx} fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]} />
+                  ))}
+                </Bar>
               </BarChart>
             </ChartContainer>
           </CardContent>
@@ -247,7 +281,11 @@ function InsightsContent() {
                 <XAxis dataKey="key" tickLine={false} axisLine={false} />
                 <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                <Bar dataKey="count" radius={4}>
+                  {by_priority.map((entry) => (
+                    <Cell key={entry.key} fill={PRIORITY_COLORS[entry.key] ?? "var(--chart-5)"} />
+                  ))}
+                </Bar>
               </BarChart>
             </ChartContainer>
           </CardContent>

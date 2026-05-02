@@ -80,6 +80,7 @@ As an optional enhancement, the proposed system integrates Azure Application Ins
 - Tailwind CSS 4 and shadcn/ui (Radix primitives) for component design
 - Recharts for the admin monitoring dashboard
 - Microsoft Entra ID authentication via MSAL (`@azure/msal-browser`, `@azure/msal-react`)
+- Custom Next.js server (`server.ts` via `tsx`) with `ws` WebSocket server for real-time in-app notifications
 - Azure App Service for frontend hosting
 
 ### II. Backend
@@ -298,6 +299,21 @@ Implemented. Partition key `/ticket_id`. Stores append-only progress entries on 
 | **created_at** | timestamp | — | Entry creation timestamp |
 | **resolved_in_seconds** | integer | nullable | Time-to-resolve in seconds (only set for `resolution` entries) |
 
+### 7. notifications
+
+Implemented. Partition key `/recipient_email`. Stores in-app notifications for all roles; must be created manually in the Cosmos DB account.
+
+| Field | Type | Constraint | Description |
+|-------|------|-----------|-------------|
+| **notification_id** | string | PK | Unique notification identifier (uuid4); also stored as Cosmos `id` |
+| **recipient_email** | string | partition key | Recipient's email address (lowercase) |
+| **type** | enum | — | `ticket_created`, `ticket_updated`, `ticket_assigned`, `ticket_assigned_to_me`, `status_changed`, `ticket_resolved`, `ticket_deleted`, `ticket_reopened`, `ticket_escalated`, `new_ticket`, `new_user_registered` |
+| **title** | string | — | Short heading |
+| **message** | string | — | Full message body |
+| **ticket_id** | string | nullable | Related ticket ID (if applicable) |
+| **is_read** | boolean | — | False by default; set to true when user reads or marks as read |
+| **created_at** | timestamp | — | ISO 8601 UTC creation timestamp |
+
 ### 6. admin_notes
 
 Implemented (UC-16). Partition key `/ticket_id`. Stores internal admin-only notes that are completely separate from `ticket_comments` and are accessible only to users with role `admin`.
@@ -321,6 +337,7 @@ Implemented (UC-16). Partition key `/ticket_id`. Stores internal admin-only note
 | tickets → ticket_comments | One-to-Many (1:N) | One ticket can have many progress entries (comments + one resolution) |
 | tickets → admin_notes | One-to-Many (1:N) | One ticket can have many internal admin-only notes |
 | tickets → email_logs | One-to-Many (1:N) | One ticket can trigger many email notifications |
+| users → notifications | One-to-Many (1:N) | One user (recipient_email) can have many in-app notifications |
 | teams → users (agents) | One-to-Many (1:N) | One team can have many agent users assigned via `team_id` |
 
 ## Database Diagram
@@ -375,6 +392,14 @@ The backend is implemented with the Azure Functions V2 programming model using B
 |--------|----------|-------------------|-------------|
 | **GET** | /api/agent/tickets | `agent.get_agent_tickets` | Lists tickets visible to the agent — those whose category matches one of the agent's team categories (filters: `status`, `priority`). |
 | **PATCH** | /api/agent/tickets/{ticketId}/status | `agent.update_ticket_status_endpoint` | Updates a ticket status, emits a `TicketStatusChanged` telemetry event, and notifies the submitter. |
+
+### Notifications — `notifications.py` (any authenticated role)
+
+| Method | Endpoint | Blueprint Handler | Description |
+|--------|----------|-------------------|-------------|
+| **GET** | /api/notifications | `notifications.get_notifications` | Lists notifications for the authenticated user. Optional `?unread_only=true` filter. |
+| **PATCH** | /api/notifications/{notificationId}/read | `notifications.mark_notification_read` | Marks a single notification as read. |
+| **POST** | /api/notifications/mark-all-read | `notifications.mark_all_read` | Marks all notifications as read for the authenticated user. |
 
 ### Admin portal — `admin.py`, `admin_notes.py`, `insights.py`, `teams.py` (role: admin)
 
@@ -439,7 +464,7 @@ Create an Azure Resource Group to organise all QuickAid resources. Use a consist
 
 ### Step 2: Cosmos DB Configuration
 
-Provision an Azure Cosmos DB account using the Core SQL API. Create a database named quickaid-db and containers for users, tickets, status_history, email_logs, and admin_notes with appropriate partition keys.
+Provision an Azure Cosmos DB account using the Core SQL API. Create a database named quickaid-db and containers for users, tickets, status_history, email_logs, ticket_comments, admin_notes, teams, and notifications with appropriate partition keys. The notifications container must use `/recipient_email` as its partition key.
 
 ### Step 3: Azure Functions Deployment
 
