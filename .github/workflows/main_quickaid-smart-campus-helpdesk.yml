@@ -23,7 +23,7 @@ jobs:
       - name: Set up Node.js version
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '22.x'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -79,3 +79,4 @@ jobs:
           app-name: 'quickaid-smart-campus-helpdesk'
           slot-name: 'Production'
           package: .
+          startup-command: 'node server.js'
