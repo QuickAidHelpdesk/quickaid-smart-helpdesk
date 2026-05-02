@@ -118,8 +118,7 @@ export const siteConfig = {
   ],
 
   // Secondary Navigation (Bottom)
-  navSecondary: [
-  ],
+  navSecondary: [] as { title: string; url: string; icon: React.ReactNode }[],
 
   // User Navigation
   navUser: [
