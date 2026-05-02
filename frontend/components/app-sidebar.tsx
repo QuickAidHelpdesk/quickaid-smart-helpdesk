@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { siteConfig } from "@/config/site";
+import { siteConfig, NavGroup } from "@/config/site";
 import { useAuth } from "@/context/auth-context";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
@@ -22,6 +22,9 @@ import { Separator } from "@/components/ui/separator";
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth();
   const Logo = siteConfig.company.logo;
+  const filteredNavMain = (siteConfig.navMain as NavGroup[]).filter(
+    (group) => !group.roles || (user?.role != null && group.roles.includes(user.role))
+  );
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -44,7 +47,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={siteConfig.navMain} action={siteConfig.quickCreate} />
+        <NavMain items={filteredNavMain} action={siteConfig.quickCreate} />
         <div className="mt-auto">
           <Separator className="mx-auto hidden w-4 group-data-[collapsible=icon]:block group-data-[collapsible=icon]:mb-2" />
           <NavSecondary items={siteConfig.navSecondary} />

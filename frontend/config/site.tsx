@@ -26,6 +26,14 @@ import {
   BellIcon,
 } from "lucide-react";
 
+type NavRole = "user" | "agent" | "admin";
+
+export interface NavGroup {
+  title: string;
+  roles?: NavRole[];
+  items: { title: string; url: string; icon?: React.ReactNode }[];
+}
+
 export const siteConfig = {
   // Paths
   publicPaths: ["/", "/404", "/login", "/logout", "/register", "/signup"],
@@ -68,15 +76,11 @@ export const siteConfig = {
           url: "/tickets",
           icon: <TicketIcon />,
         },
-        {
-          title: "Create Ticket",
-          url: "/tickets/new",
-          icon: <CirclePlusIcon />,
-        },
       ],
     },
     {
       title: "Agent",
+      roles: ["agent", "admin"] as NavRole[],
       items: [
         {
           title: "Assigned Tickets",
@@ -87,6 +91,7 @@ export const siteConfig = {
     },
     {
       title: "Management",
+      roles: ["admin"] as NavRole[],
       items: [
         {
           title: "Users",
@@ -109,21 +114,6 @@ export const siteConfig = {
 
   // Secondary Navigation (Bottom)
   navSecondary: [
-    {
-      title: "Search",
-      url: "/search",
-      icon: <SearchIcon />,
-    },
-    {
-      title: "Get Help",
-      url: "/help",
-      icon: <CircleHelpIcon />,
-    },
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: <Settings2Icon />,
-    },
   ],
 
   // User Navigation
