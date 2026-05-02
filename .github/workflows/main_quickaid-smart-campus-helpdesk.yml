@@ -37,6 +37,7 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_MSAL_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_MSAL_CLIENT_ID }}
           NEXT_PUBLIC_MSAL_TENANT_ID: ${{ secrets.NEXT_PUBLIC_MSAL_TENANT_ID }}
+          NEXT_PUBLIC_REDIRECT_URI: ${{ secrets.NEXT_PUBLIC_REDIRECT_URI }}
         run: npm run build
 
       - name: Prepare standalone output
@@ -71,6 +72,13 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_E0769A4DADEB48CEAB7FE44D344D7A33 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_2A0CA79FE2684D2496C3511D2A2713FE }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_03DD1217773E4E7F9CB16B8211A59AE8 }}
+
+      - name: Configure Azure Web App runtime settings
+        run: |
+          az webapp config appsettings set \
+            --name quickaid-smart-campus-helpdesk \
+            --resource-group $(az webapp list --query "[?name=='quickaid-smart-campus-helpdesk'].resourceGroup" -o tsv) \
+            --settings HOSTNAME=0.0.0.0 NODE_ENV=production
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
