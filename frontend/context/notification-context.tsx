@@ -45,25 +45,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  const wsRef = useRef<WebSocket | null>(null);
-  const retryDelay = useRef(5000);
-  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
-
-  const fetchAll = useCallback(async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      const data = await getNotifications(false);
-      setNotifications(data.notifications);
-    } catch {
-      // silently fail — context will retry via WebSocket push
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
 
   const mergeIncoming = useCallback((incoming: Notification[]) => {
     setNotifications((prev) => {
@@ -74,67 +58,52 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
   }, []);
 
-  const connect = useCallback(() => {
-    if (!user || typeof window === "undefined") return;
+  const fetchAll = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const data = await getNotifications(false);
+      setNotifications(data.notifications);
+    } catch {
+      // silently fail
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
 
-    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/notifications`);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ type: "auth", email: user.email }));
-      setIsConnected(true);
-      retryDelay.current = 5000;
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "notifications" && Array.isArray(msg.data)) {
-          mergeIncoming(msg.data);
-        }
-      } catch {
-        // ignore malformed messages
-      }
-    };
-
-    ws.onclose = () => {
-      setIsConnected(false);
-      if (user) {
-        retryTimer.current = setTimeout(() => connect(), retryDelay.current);
-        retryDelay.current = Math.min(retryDelay.current * 2, 30_000);
-      }
-    };
-
-    ws.onerror = () => ws.close();
+  const pollUnread = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await getNotifications(true);
+      mergeIncoming(data.notifications);
+    } catch {
+      // silently fail — network errors are expected when backend is down
+    }
   }, [user, mergeIncoming]);
 
   useEffect(() => {
     if (!user) {
-      // Clean up on logout
-      if (wsRef.current) {
-        wsRef.current.onclose = null;
-        wsRef.current.close();
-        wsRef.current = null;
+      if (pollInterval.current) {
+        clearInterval(pollInterval.current);
+        pollInterval.current = null;
       }
-      if (retryTimer.current) clearTimeout(retryTimer.current);
       setNotifications([]);
       setIsConnected(false);
       return;
     }
 
     fetchAll();
-    connect();
+    setIsConnected(true);
+    pollInterval.current = setInterval(pollUnread, 15_000);
 
     return () => {
-      if (wsRef.current) {
-        wsRef.current.onclose = null;
-        wsRef.current.close();
-        wsRef.current = null;
+      if (pollInterval.current) {
+        clearInterval(pollInterval.current);
+        pollInterval.current = null;
       }
-      if (retryTimer.current) clearTimeout(retryTimer.current);
+      setIsConnected(false);
     };
-  }, [user, fetchAll, connect]);
+  }, [user, fetchAll, pollUnread]);
 
   const markAsRead = useCallback(
     async (notificationId: string) => {

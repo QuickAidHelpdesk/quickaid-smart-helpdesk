@@ -8,7 +8,7 @@ const msalConfig: Configuration = {
   auth: {
     clientId: process.env.NEXT_PUBLIC_MSAL_CLIENT_ID!,
     authority: `https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_MSAL_TENANT_ID}`,
-    redirectUri: "http://localhost:3000",
+    redirectUri: process.env.NEXT_PUBLIC_REDIRECT_URI || "http://localhost:3000",
   },
   cache: {
     cacheLocation: BrowserCacheLocation.LocalStorage,
