@@ -5,6 +5,7 @@ import "./globals.css";
 
 import { AppWrapper } from "@/components/app-wrapper";
 import { AuthProvider } from "@/context/auth-context";
+import { NotificationProvider } from "@/context/notification-context";
 import { ThemeProvider } from "@/components/theme-provider";
 
 import { Toaster } from "@/components/ui/sonner"
@@ -42,12 +43,14 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <AppWrapper
-              defaultOpen={defaultOpen}
-              defaultCollapsedMode={defaultCollapsedMode}
-            >
-              {children}
-            </AppWrapper>
+            <NotificationProvider>
+              <AppWrapper
+                defaultOpen={defaultOpen}
+                defaultCollapsedMode={defaultCollapsedMode}
+              >
+                {children}
+              </AppWrapper>
+            </NotificationProvider>
           </AuthProvider>
         </ThemeProvider>
         <Toaster position="bottom-right" />

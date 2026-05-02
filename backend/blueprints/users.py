@@ -30,6 +30,7 @@ from utils.http_helpers import (
     json_response,
     preflight_response,
 )
+from shared.notification.notification_service import notify_all_admins
 
 bp = func.Blueprint()
 logger = logging.getLogger(__name__)
@@ -54,12 +55,24 @@ def user_login(req: func.HttpRequest) -> func.HttpResponse:
     if errors:
         return json_response({"error": "Validation failed", "details": errors}, 400)
 
+    # Check if brand-new user before upsert (to decide whether to notify admins)
+    is_new_user = get_user_by_email(data["email"]) is None
+
     # Upsert user (FR-01-02)
     try:
         user = upsert_user(data)
     except Exception as e:
         logger.error("Failed to upsert user: %s", e)
         return error_response("Failed to process user login.", 500)
+
+    if is_new_user:
+        try:
+            notify_all_admins(
+                "new_user_registered", "New User Registered",
+                f"{user['display_name']} ({user['email']}) has joined QuickAid.",
+            )
+        except Exception as e:
+            logger.error("Notification failed (new_user_registered) for %s: %s", user.get("email"), e)
 
     return json_response({
         "success": True,
@@ -92,6 +105,14 @@ def user_signup(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logger.error("Failed to sign up user: %s", e)
         return error_response("Failed to create account.", 500)
+
+    try:
+        notify_all_admins(
+            "new_user_registered", "New User Registered",
+            f"{user['display_name']} ({user['email']}) has joined QuickAid.",
+        )
+    except Exception as e:
+        logger.error("Notification failed (new_user_registered) for %s: %s", user.get("email"), e)
 
     return json_response({
         "success": True,

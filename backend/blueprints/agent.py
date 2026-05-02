@@ -22,6 +22,7 @@ from utils.http_helpers import (
     preflight_response,
 )
 from utils.telemetry import track_event
+from shared.notification.notification_service import create_notification
 
 bp = func.Blueprint()
 logger = logging.getLogger(__name__)
@@ -122,6 +123,15 @@ def update_ticket_status_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         "new_status": updated_ticket["status"],
         "changed_by": user["email"],
     })
+
+    try:
+        create_notification(
+            updated_ticket["email"], "status_changed", "Ticket Status Updated",
+            f"Your ticket {ticket_id} status has changed to '{updated_ticket['status']}'.",
+            ticket_id,
+        )
+    except Exception as e:
+        logger.error("Notification failed (status_changed) for %s: %s", ticket_id, e)
 
     # FR-08-03: Send status update email (fire-and-forget)
     try:

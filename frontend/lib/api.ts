@@ -110,3 +110,20 @@ export async function addUserToTeam(teamId: string, userId: string) {
 export async function removeUserFromTeam(teamId: string, userId: string) {
   return apiDelete<{ success: boolean }>(`/manage/teams/${teamId}/users/${userId}`);
 }
+
+// Notifications
+import type { Notification } from "../types/notification";
+
+export async function getNotifications(unreadOnly = false) {
+  return apiGet<{ notifications: Notification[] }>(
+    `/notifications${unreadOnly ? "?unread_only=true" : ""}`
+  );
+}
+
+export async function markNotificationRead(notificationId: string) {
+  return apiPatch<{ success: boolean }>(`/notifications/${notificationId}/read`, {});
+}
+
+export async function markAllNotificationsRead() {
+  return apiPost<{ success: boolean; updated: number }>("/notifications/mark-all-read", {});
+}

@@ -30,6 +30,7 @@ from utils.http_helpers import (
     preflight_response,
 )
 from utils.telemetry import track_event
+from shared.notification.notification_service import create_notification
 
 bp = func.Blueprint()
 logger = logging.getLogger(__name__)
@@ -149,6 +150,23 @@ def assign_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logger.error("Failed to assign ticket %s: %s", ticket_id, e)
         return error_response("Failed to assign ticket.", 500)
+
+    try:
+        create_notification(
+            updated_ticket["email"], "ticket_assigned", "Ticket Assigned",
+            f"Your ticket {ticket_id} has been assigned to {agent_user['display_name']}.",
+            ticket_id,
+        )
+    except Exception as e:
+        logger.error("Notification failed (ticket_assigned user) for %s: %s", ticket_id, e)
+    try:
+        create_notification(
+            agent_user["email"], "ticket_assigned_to_me", "New Ticket Assigned to You",
+            f"Ticket {ticket_id} ({updated_ticket.get('category')}) has been assigned to you: {updated_ticket['subject']}",
+            ticket_id,
+        )
+    except Exception as e:
+        logger.error("Notification failed (ticket_assigned_to_me) for %s: %s", ticket_id, e)
 
     # Best-effort email notification (FR-09-01)
     try:

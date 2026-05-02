@@ -31,7 +31,7 @@ type NavRole = "user" | "agent" | "admin";
 export interface NavGroup {
   title: string;
   roles?: NavRole[];
-  items: { title: string; url: string; icon?: React.ReactNode }[];
+  items: { title: string; url: string; icon?: React.ReactNode; badge?: number }[];
 }
 
 export const siteConfig = {
@@ -75,6 +75,11 @@ export const siteConfig = {
           title: "My Tickets",
           url: "/tickets",
           icon: <TicketIcon />,
+        },
+        {
+          title: "Notifications",
+          url: "/notifications",
+          icon: <BellIcon />,
         },
       ],
     },

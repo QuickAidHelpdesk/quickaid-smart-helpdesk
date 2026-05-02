@@ -35,6 +35,7 @@ export function NavMain({
       title: string;
       url: string;
       icon?: React.ReactNode;
+      badge?: number;
     }[];
   }[];
   action?: {
@@ -78,6 +79,11 @@ export function NavMain({
                   <Link href={item.url}>
                     {item.icon}
                     <span>{item.title}</span>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold px-1.5 tabular-nums">
+                        {item.badge > 99 ? "99+" : item.badge}
+                      </span>
+                    )}
                   </Link>
                 </SidebarMenuButton>
                 {/* {group.title === "Documents" && (

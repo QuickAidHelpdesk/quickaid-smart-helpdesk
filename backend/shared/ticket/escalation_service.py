@@ -23,6 +23,7 @@ from utils.telemetry import track_event
 from shared.ticket.comment_service import create_comment
 from shared.ticket.email_service import send_escalation_email
 from shared.team.team_service import get_agents_for_category
+from shared.notification.notification_service import create_notification, notify_agents_in_category
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +199,23 @@ def escalate_stale_tickets(now: datetime | None = None) -> dict:
                 "days_since_last_change": days_stale,
                 "category": updated.get("category"),
             })
+
+            try:
+                create_notification(
+                    updated["email"], "ticket_escalated", "Ticket Priority Escalated",
+                    f"Your ticket {updated['ticket_id']} priority has been escalated from {old_priority} to {new_priority}.",
+                    updated["ticket_id"],
+                )
+            except Exception as e:
+                logger.error("Escalation notification failed (user) for %s: %s", updated["ticket_id"], e)
+            try:
+                notify_agents_in_category(
+                    updated.get("category"), "ticket_escalated", "Ticket Escalated",
+                    f"Ticket {updated['ticket_id']} in {updated.get('category')} escalated to {new_priority} priority.",
+                    updated["ticket_id"],
+                )
+            except Exception as e:
+                logger.error("Escalation notification failed (agents) for %s: %s", updated["ticket_id"], e)
 
             summary["escalated"] += 1
         except Exception as e:

@@ -44,6 +44,11 @@ from utils.http_helpers import (
     preflight_response
 )
 from utils.telemetry import track_event
+from shared.notification.notification_service import (
+    create_notification,
+    notify_agents_in_category,
+    notify_all_admins,
+)
 
 bp = func.Blueprint()
 logger = logging.getLogger(__name__)
@@ -86,6 +91,32 @@ def submit_ticket(req: func.HttpRequest) -> func.HttpResponse:
         "priority": ticket["priority"],
         "user_email": ticket["email"],
     })
+
+    # Notifications: user confirmation + agent/admin awareness
+    try:
+        create_notification(
+            ticket["email"], "ticket_created", "Ticket Submitted",
+            f"Your ticket {ticket['ticket_id']} has been submitted successfully.",
+            ticket["ticket_id"],
+        )
+    except Exception as e:
+        logger.error("Notification failed (ticket_created) for %s: %s", ticket["ticket_id"], e)
+    try:
+        notify_agents_in_category(
+            ticket["category"], "new_ticket", "New Ticket",
+            f"New ticket {ticket['ticket_id']} in {ticket['category']}: {ticket['subject']}",
+            ticket["ticket_id"],
+        )
+    except Exception as e:
+        logger.error("Notification failed (new_ticket agents) for %s: %s", ticket["ticket_id"], e)
+    try:
+        notify_all_admins(
+            "new_ticket", "New Ticket Submitted",
+            f"Ticket {ticket['ticket_id']} submitted in {ticket['category']}: {ticket['subject']}",
+            ticket["ticket_id"],
+        )
+    except Exception as e:
+        logger.error("Notification failed (new_ticket admins) for %s: %s", ticket["ticket_id"], e)
 
     # Send confirmation email (FR-03-01, FR-03-03)
     try:
@@ -242,6 +273,15 @@ def ticket_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
             logger.error("Failed to soft-delete ticket %s: %s", ticket_id, e)
             return error_response("Failed to delete ticket.", 500)
 
+        try:
+            create_notification(
+                ticket["email"], "ticket_deleted", "Ticket Deleted",
+                f"Your ticket {ticket_id} has been cancelled and removed from your list.",
+                ticket_id,
+            )
+        except Exception as e:
+            logger.error("Notification failed (ticket_deleted) for %s: %s", ticket_id, e)
+
         return json_response({
             "success": True,
             "message": f"Ticket {ticket_id} deleted. Your support team can still see it.",
@@ -282,6 +322,15 @@ def ticket_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
     if not changes:
         return json_response({"success": True, "message": "No changes applied.", "ticket": ticket})
+
+    try:
+        create_notification(
+            ticket["email"], "ticket_updated", "Ticket Updated",
+            f"Your ticket {ticket['ticket_id']} has been updated.",
+            ticket["ticket_id"],
+        )
+    except Exception as e:
+        logger.error("Notification failed (ticket_updated) for %s: %s", ticket["ticket_id"], e)
 
     try:
         send_edit_confirmation_email(
@@ -478,6 +527,15 @@ def finish_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         "resolved_in_seconds": resolved_in_seconds,
     })
 
+    try:
+        create_notification(
+            updated_ticket["email"], "ticket_resolved", "Ticket Resolved",
+            f"Your ticket {ticket_id} has been resolved. Thank you for your patience!",
+            ticket_id,
+        )
+    except Exception as e:
+        logger.error("Notification failed (ticket_resolved) for %s: %s", ticket_id, e)
+
     # Status-update email (fire-and-forget)
     try:
         send_status_update_email(
@@ -585,6 +643,23 @@ def reopen_ticket_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         "reopen_count": updated_ticket.get("reopen_count", 1),
         "category": updated_ticket.get("category"),
     })
+
+    try:
+        create_notification(
+            updated_ticket["email"], "ticket_reopened", "Ticket Re-opened",
+            f"Your ticket {ticket_id} has been re-opened. The team will follow up shortly.",
+            ticket_id,
+        )
+    except Exception as e:
+        logger.error("Notification failed (ticket_reopened user) for %s: %s", ticket_id, e)
+    try:
+        notify_agents_in_category(
+            updated_ticket.get("category"), "ticket_reopened", "Ticket Re-opened",
+            f"Ticket {ticket_id} in {updated_ticket.get('category')} was re-opened by the submitter.",
+            ticket_id,
+        )
+    except Exception as e:
+        logger.error("Notification failed (ticket_reopened agents) for %s: %s", ticket_id, e)
 
     try:
         send_status_update_email(

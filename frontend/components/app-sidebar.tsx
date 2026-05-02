@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { siteConfig, NavGroup } from "@/config/site";
 import { useAuth } from "@/context/auth-context";
+import { useNotifications } from "@/context/notification-context";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
@@ -21,10 +22,19 @@ import { Separator } from "@/components/ui/separator";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth();
+  const { unreadCount } = useNotifications();
   const Logo = siteConfig.company.logo;
-  const filteredNavMain = (siteConfig.navMain as NavGroup[]).filter(
-    (group) => !group.roles || (user?.role != null && group.roles.includes(user.role))
-  );
+
+  const filteredNavMain = (siteConfig.navMain as NavGroup[])
+    .filter((group) => !group.roles || (user?.role != null && group.roles.includes(user.role)))
+    .map((group) => ({
+      ...group,
+      items: group.items.map((item) =>
+        item.url === "/notifications"
+          ? { ...item, badge: unreadCount > 0 ? unreadCount : undefined }
+          : item
+      ),
+    }));
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
