@@ -69,26 +69,22 @@ QuickSmartAid/
 │   │   ├── page.tsx                # Landing page
 │   │   ├── login/                  # Entra ID sign-in
 │   │   ├── register/               # Post-login registration
+│   │   ├── signup/                 # Alternative auth flow
 │   │   ├── dashboard/              # User dashboard
 │   │   ├── account/                # User account page
+│   │   ├── notifications/          # User notifications page
 │   │   ├── tickets/                # Ticket list
-│   │   │   ├── new/                #   Create ticket
-│   │   │   └── [id]/               #   Ticket details / edit
 │   │   ├── assigned-tickets/       # Agent assigned-tickets view
-│   │   ├── admin/insights/         # Admin monitoring dashboard (UC-11)
-│   │   └── users/                  # Admin user management
-│   │       └── [id]/               #   User detail / role edit
+│   │   └── admin/                  # Admin portal views
+│   │       ├── agents-and-teams/   #   Manage agents and teams
+│   │       ├── insights/           #   Admin monitoring dashboard
+│   │       └── users/              #   Admin user management
 │   ├── components/                 # Reusable UI components
-│   │   ├── ui/                     #   shadcn/ui primitives
-│   │   ├── app-sidebar.tsx         #   Sidebar navigation
-│   │   ├── nav-main.tsx            #   Main navigation
-│   │   ├── protected-route.tsx     #   Client-side role gate
-│   │   └── ...
-│   ├── context/                    # React context providers (auth-context)
+│   ├── context/                    # React context providers
 │   ├── hooks/                      # Custom React hooks
-│   ├── lib/                        # Utilities (api, msal-config, utils)
-│   ├── config/                     # Site config + enums
-│   ├── types/                      # Shared TS types (user, insights)
+│   ├── lib/                        # Utilities
+│   ├── config/                     # Site config
+│   ├── types/                      # Shared TS types
 │   └── public/                     # Static assets
 │
 ├── backend/                        # Azure Functions serverless API (Python V2)
@@ -102,15 +98,17 @@ QuickSmartAid/
 │   │   ├── users.py                #   Public user endpoints
 │   │   ├── agent.py                #   Agent portal endpoints
 │   │   ├── admin.py                #   Admin portal endpoints
-│   │   └── insights.py             #   Admin analytics endpoint (UC-11)
+│   │   ├── insights.py             #   Admin analytics endpoint
+│   │   ├── teams.py                #   Teams endpoints
+│   │   ├── notifications.py        #   Notifications endpoints
+│   │   ├── admin_notes.py          #   Admin ticket notes endpoints
+│   │   └── escalation.py           #   Auto-escalation timer trigger
 │   ├── utils/                      # Helpers
-│   │   ├── cosmos_client.py        #   Cosmos DB connection
-│   │   ├── http_helpers.py         #   JSON / error / CORS helpers
-│   │   ├── auth.py                 #   require_role() — X-User-Email lookup
-│   │   └── telemetry.py            #   Application Insights custom events
 │   └── shared/                     # Service layer
-│       ├── ticket/                 #   ticket_service, email_service, validator
-│       └── user/                   #   user_service, validator
+│       ├── notification/           #   notification_service
+│       ├── team/                   #   team_service
+│       ├── ticket/                 #   ticket_service etc.
+│       └── user/                   #   user_service
 │
 └── docs/                           # Project documentation
 ```
@@ -119,34 +117,54 @@ QuickSmartAid/
 
 ### Public — tickets & users
 
-| Method | Endpoint                              | Description                                | Auth         |
-|--------|---------------------------------------|--------------------------------------------|--------------|
-| POST   | `/api/submit_ticket`                  | Create a new ticket                        | Any role     |
-| GET    | `/api/tickets`                        | Get tickets for the authenticated user     | Any role     |
-| GET    | `/api/tickets/search?q={query}`       | Search tickets by subject or ID            | Any role     |
-| GET    | `/api/tickets/{ticketId}`             | Get ticket details                         | Any role     |
-| PATCH  | `/api/tickets/{ticketId}`             | Edit a ticket (owner only, status=Open)    | Any role     |
-| POST   | `/api/users/login`                    | Upsert user on Entra ID login              | Public       |
-| GET    | `/api/users?email={email}`            | Get user by email                          | Public       |
-| GET    | `/api/users/{userId}`                 | Get user by ID                             | Any role     |
+| Method | Endpoint                           | Description                              | Auth        |
+| ------ | ---------------------------------- | ---------------------------------------- | ----------- |
+| POST   | `/api/submit_ticket`               | Create a new ticket                      | Any role    |
+| GET    | `/api/tickets`                     | Get tickets for the authenticated user   | Any role    |
+| GET    | `/api/tickets/search?q={query}`    | Search tickets by subject or ID          | Any role    |
+| GET    | `/api/tickets/{ticketId}`          | Get ticket details                       | Any role    |
+| PATCH  | `/api/tickets/{ticketId}`          | Edit a ticket (owner only, status=Open)  | Any role    |
+| DELETE | `/api/tickets/{ticketId}`          | Delete a ticket (owner only)             | Any role    |
+| GET    | `/api/tickets/{ticketId}/comments` | Get ticket comments and progress entries | Any role    |
+| POST   | `/api/tickets/{ticketId}/comments` | Add a progress entry/comment             | Any role    |
+| POST   | `/api/tickets/{ticketId}/finish`   | Resolve a ticket                         | Agent/Admin |
+| POST   | `/api/tickets/{ticketId}/reopen`   | Re-open a ticket                         | Owner only  |
+| POST   | `/api/users/login`                 | Upsert user on Entra ID login            | Public      |
+| GET    | `/api/users?email={email}`         | Get user by email                        | Public      |
+| GET    | `/api/users/{userId}`              | Get user by ID                           | Any role    |
 
 ### Agent portal (`X-User-Email` header, role: agent/admin)
 
-| Method | Endpoint                                      | Description                       |
-|--------|-----------------------------------------------|-----------------------------------|
-| GET    | `/api/agent/tickets`                          | View assigned tickets             |
-| PATCH  | `/api/agent/tickets/{ticketId}/status`        | Update ticket status              |
+| Method | Endpoint                               | Description           |
+| ------ | -------------------------------------- | --------------------- |
+| GET    | `/api/agent/tickets`                   | View assigned tickets |
+| PATCH  | `/api/agent/tickets/{ticketId}/status` | Update ticket status  |
+
+### Notifications (`X-User-Email` header, any role)
+
+| Method | Endpoint                                   | Description                    |
+| ------ | ------------------------------------------ | ------------------------------ |
+| GET    | `/api/notifications`                       | List notifications             |
+| PATCH  | `/api/notifications/{notificationId}/read` | Mark notification as read      |
+| POST   | `/api/notifications/mark-all-read`         | Mark all notifications as read |
 
 ### Admin portal (`X-User-Email` header, role: admin)
 
-| Method | Endpoint                                       | Description                            |
-|--------|------------------------------------------------|----------------------------------------|
-| GET    | `/api/manage/tickets`                          | View all tickets with filters          |
-| PATCH  | `/api/manage/tickets/{ticketId}/assign`        | Assign ticket to agent                 |
-| GET    | `/api/manage/agent`                            | List all agent members                 |
-| GET    | `/api/manage/users`                            | List all users                         |
-| PATCH  | `/api/manage/users/{userId}`                   | Update user role or display name       |
-| GET    | `/api/manage/insights?days=30`                 | Aggregated metrics for UC-11 dashboard |
+| Method | Endpoint                                        | Description                            |
+| ------ | ----------------------------------------------- | -------------------------------------- |
+| GET    | `/api/manage/tickets`                           | View all tickets with filters          |
+| PATCH  | `/api/manage/tickets/{ticketId}/assign`         | Assign ticket to agent                 |
+| GET    | `/api/manage/agent`                             | List all agent members                 |
+| GET    | `/api/manage/users`                             | List all users                         |
+| PATCH  | `/api/manage/users/{userId}`                    | Update user role or display name       |
+| GET    | `/api/manage/insights?days=30`                  | Aggregated metrics for UC-11 dashboard |
+| POST   | `/api/manage/tickets/{ticketId}/notes`          | Add admin note to ticket               |
+| GET    | `/api/manage/tickets/{ticketId}/notes`          | View admin notes on ticket             |
+| DELETE | `/api/manage/tickets/{ticketId}/notes/{noteId}` | Delete admin ticket note               |
+| GET    | `/api/manage/teams`                             | List teams                             |
+| POST   | `/api/manage/teams`                             | Create a team                          |
+| PATCH  | `/api/manage/teams/{teamId}`                    | Edit a team                            |
+| DELETE | `/api/manage/teams/{teamId}`                    | Delete a team                          |
 
 > Note: Uses the `manage` prefix because Azure Functions reserves the `admin` route segment.
 
@@ -174,11 +192,11 @@ NEXT_PUBLIC_MSAL_CLIENT_ID=<your-entra-app-client-id>
 NEXT_PUBLIC_MSAL_TENANT_ID=<your-entra-tenant-id>
 ```
 
-| Variable | Description | Where to get it |
-|----------|-------------|-----------------|
-| `NEXT_PUBLIC_API_URL` | Backend API base URL | Use `http://localhost:7071/api` for local dev |
+| Variable                     | Description                                | Where to get it                                        |
+| ---------------------------- | ------------------------------------------ | ------------------------------------------------------ |
+| `NEXT_PUBLIC_API_URL`        | Backend API base URL                       | Use `http://localhost:7071/api` for local dev          |
 | `NEXT_PUBLIC_MSAL_CLIENT_ID` | Microsoft Entra ID application (client) ID | Azure Portal → App registrations → your app → Overview |
-| `NEXT_PUBLIC_MSAL_TENANT_ID` | Microsoft Entra ID directory (tenant) ID | Azure Portal → App registrations → your app → Overview |
+| `NEXT_PUBLIC_MSAL_TENANT_ID` | Microsoft Entra ID directory (tenant) ID   | Azure Portal → App registrations → your app → Overview |
 
 ### Backend (`backend/local.settings.json`)
 
@@ -206,17 +224,17 @@ Create `backend/local.settings.json` with the following structure:
 }
 ```
 
-| Variable | Description | Where to get it |
-|----------|-------------|-----------------|
-| `COSMOS_CONNECTION_STRING` | Azure Cosmos DB connection string | Azure Portal → Cosmos DB account → Keys → Primary Connection String |
-| `COSMOS_DATABASE_NAME` | Cosmos DB database name | Default: `quickaid-db` |
-| `COSMOS_CONTAINER_TICKETS` | Container for tickets | Default: `tickets` |
-| `COSMOS_CONTAINER_USERS` | Container for users | Default: `users` |
-| `COSMOS_CONTAINER_STATUS_HISTORY` | Container for status history | Default: `status_history` |
-| `EMAIL_CONNECTION_STRING` | Azure Communication Services connection string | Azure Portal → Communication Services → Keys → Connection String |
-| `EMAIL_SENDER_ADDRESS` | Verified sender email address (e.g., `DoNotReply@xxx.azurecomm.net`) | Azure Portal → Email Communication Services → Provision Domains → MailFrom addresses |
+| Variable                                | Description                                                                             | Where to get it                                                                      |
+| --------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `COSMOS_CONNECTION_STRING`              | Azure Cosmos DB connection string                                                       | Azure Portal → Cosmos DB account → Keys → Primary Connection String                  |
+| `COSMOS_DATABASE_NAME`                  | Cosmos DB database name                                                                 | Default: `quickaid-db`                                                               |
+| `COSMOS_CONTAINER_TICKETS`              | Container for tickets                                                                   | Default: `tickets`                                                                   |
+| `COSMOS_CONTAINER_USERS`                | Container for users                                                                     | Default: `users`                                                                     |
+| `COSMOS_CONTAINER_STATUS_HISTORY`       | Container for status history                                                            | Default: `status_history`                                                            |
+| `EMAIL_CONNECTION_STRING`               | Azure Communication Services connection string                                          | Azure Portal → Communication Services → Keys → Connection String                     |
+| `EMAIL_SENDER_ADDRESS`                  | Verified sender email address (e.g., `DoNotReply@xxx.azurecomm.net`)                    | Azure Portal → Email Communication Services → Provision Domains → MailFrom addresses |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Application Insights connection string (enables telemetry + custom events, FR-11-01/02) | Azure Portal → `quickaid-func` Application Insights → Properties → Connection String |
-| `APPLICATIONINSIGHTS_PORTAL_URL` | Optional. Deep link shown on the admin insights page for raw telemetry | Azure Portal → Application Insights blade → copy URL from the address bar |
+| `APPLICATIONINSIGHTS_PORTAL_URL`        | Optional. Deep link shown on the admin insights page for raw telemetry                  | Azure Portal → Application Insights blade → copy URL from the address bar            |
 
 > **Note:** `local.settings.json` is gitignored and should never be committed. Each developer must create their own copy.
 
@@ -275,10 +293,10 @@ EMAIL_SENDER_ADDRESS=DoNotReply@<your-azure-subdomain>.azurecomm.net
 docker-compose up --build
 ```
 
-| Service | URL |
-|---------|-----|
+| Service  | URL                     |
+| -------- | ----------------------- |
 | Frontend | `http://localhost:3000` |
-| Backend | `http://localhost:7071` |
+| Backend  | `http://localhost:7071` |
 
 ### 3. Stop
 
