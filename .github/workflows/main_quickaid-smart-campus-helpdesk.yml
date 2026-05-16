@@ -109,6 +109,11 @@ jobs:
               ENABLE_ORYX_BUILD=false \
               WEBSITE_RUN_FROM_PACKAGE=0
 
+      # Settings change restarts the SCM container; deploying immediately
+      # races that restart and fails. Wait for SCM to come back.
+      - name: Wait for SCM container to restart
+        run: sleep 60
+
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
