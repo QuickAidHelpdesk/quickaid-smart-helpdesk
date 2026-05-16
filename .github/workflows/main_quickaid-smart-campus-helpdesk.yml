@@ -66,11 +66,14 @@ jobs:
           mv frontend/node_modules deploy/node_modules
           rm -rf deploy/.next/cache
 
+      - name: Zip deployment package
+        run: cd deploy && zip -r ../deployment.zip .
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: deploy
+          path: deployment.zip
 
   deploy:
     runs-on: ubuntu-latest
@@ -99,7 +102,12 @@ jobs:
           az webapp config appsettings set \
             --name quickaid-smart-campus-helpdesk \
             --resource-group $(az webapp list --query "[?name=='quickaid-smart-campus-helpdesk'].resourceGroup" -o tsv) \
-            --settings HOSTNAME=0.0.0.0 NODE_ENV=production
+            --settings \
+              HOSTNAME=0.0.0.0 \
+              NODE_ENV=production \
+              SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+              ENABLE_ORYX_BUILD=false \
+              WEBSITE_RUN_FROM_PACKAGE=0
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
@@ -107,5 +115,5 @@ jobs:
         with:
           app-name: 'quickaid-smart-campus-helpdesk'
           slot-name: 'Production'
-          package: .
+          package: deployment.zip
           startup-command: 'node server.js'
