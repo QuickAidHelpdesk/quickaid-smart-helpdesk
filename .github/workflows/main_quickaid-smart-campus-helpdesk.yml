@@ -40,28 +40,37 @@ jobs:
           NEXT_PUBLIC_REDIRECT_URI: ${{ secrets.NEXT_PUBLIC_REDIRECT_URI }}
         run: npm run build
 
-      - name: Compile custom server
+      - name: Compile custom WebSocket server
         working-directory: frontend
         run: |
           npx esbuild server.ts \
             --bundle \
             --platform=node \
-            --target=node18 \
+            --target=node22 \
             --format=cjs \
             --external:next \
-            --outfile=.next/standalone/server.js
+            --external:ws \
+            --outfile=server.js
 
-      - name: Prepare standalone output
+      - name: Prune dev dependencies
+        working-directory: frontend
+        run: npm prune --production
+
+      - name: Create deployment package
         run: |
-          cp -r frontend/public frontend/.next/standalone/public
-          cp -r frontend/.next/static frontend/.next/standalone/.next/static
-          cp frontend/.next/BUILD_ID frontend/.next/standalone/.next/BUILD_ID
+          mkdir -p deploy
+          cp -r frontend/.next deploy/.next
+          cp -r frontend/public deploy/public
+          cp frontend/server.js deploy/server.js
+          cp frontend/package.json deploy/package.json
+          mv frontend/node_modules deploy/node_modules
+          rm -rf deploy/.next/cache
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: frontend/.next/standalone
+          path: deploy
 
   deploy:
     runs-on: ubuntu-latest
