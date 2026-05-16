@@ -40,10 +40,22 @@ jobs:
           NEXT_PUBLIC_REDIRECT_URI: ${{ secrets.NEXT_PUBLIC_REDIRECT_URI }}
         run: npm run build
 
+      - name: Compile custom server
+        working-directory: frontend
+        run: |
+          npx esbuild server.ts \
+            --bundle \
+            --platform=node \
+            --target=node18 \
+            --format=cjs \
+            --external:next \
+            --outfile=.next/standalone/server.js
+
       - name: Prepare standalone output
         run: |
           cp -r frontend/public frontend/.next/standalone/public
           cp -r frontend/.next/static frontend/.next/standalone/.next/static
+          cp frontend/.next/BUILD_ID frontend/.next/standalone/.next/BUILD_ID
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
